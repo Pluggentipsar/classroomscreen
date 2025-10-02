@@ -1,0 +1,207 @@
+﻿<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Classroomscreen – Interaktiv klassrumstavla</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <button class="icon-button" data-action="home" title="Hem">
+          <span class="icon">&#x1F3E0;</span>
+        </button>
+        <div class="header-actions">
+          <button class="icon-button" data-action="auto-arrange" title="Organisera widgets">
+            <span class="icon">&#x1F4CA;</span>
+          </button>
+          <button class="icon-button" data-action="font-size" title="Textstorlek">
+            <span class="icon">Aa</span>
+          </button>
+          <button class="icon-button" data-action="toggle-widgets" title="Minimera/visa widgets">
+            <span class="icon">&#x1F441;&#xFE0F;</span>
+          </button>
+          <button class="icon-button" data-action="toggle-ui" title="Minimera/visa gränssnitt">
+            <span class="icon">&#x2195;&#xFE0F;</span>
+          </button>
+          <button class="icon-button" data-action="fullscreen" title="Helskärm">
+            <span class="icon">&#x26F6;</span>
+          </button>
+          <button class="icon-button" data-action="admin" title="Hantera screens">
+            <span class="icon">&#x1F4C1;</span>
+          </button>
+          <button class="icon-button" data-action="library" title="Bibliotek">
+            <span class="icon">&#x1F4DA;</span>
+          </button>
+          <button class="icon-button" data-action="settings" title="Inst&auml;llningar">
+            <span class="icon">&#9881;&#65039;</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace" id="workspace">
+        <div class="background-overlay" id="backgroundOverlay"></div>
+        <div class="widget-layer" id="widgetLayer"></div>
+        <button class="ui-toggle-fab" id="uiToggleFab" title="Visa/dölj gränssnitt">
+          <span class="icon">&#x2195;&#xFE0F;</span>
+        </button>
+      </main>
+
+      <nav class="toolbar" aria-label="Widgetverktyg">
+        <button class="toolbar-button" data-widget="background">
+          <span class="icon">&#x1F3A8;</span>
+          <span class="label">Background</span>
+        </button>
+        <button class="toolbar-button" data-widget="poll">
+          <span class="icon">&#x1F4CA;</span>
+          <span class="label">Poll</span>
+        </button>
+        <button class="toolbar-button" data-widget="randomizer">
+          <span class="icon">&#x1F3B2;</span>
+          <span class="label">Randomizer</span>
+        </button>
+        <button class="toolbar-button" data-widget="sound-level">
+          <span class="icon">&#x1F50A;</span>
+          <span class="label">Sound level</span>
+        </button>
+        <button class="toolbar-button" data-widget="music">
+          <span class="icon">&#x1F3B5;</span>
+          <span class="label">Music</span>
+        </button>
+        <button class="toolbar-button" data-widget="image">
+          <span class="icon">&#x1F5BC;&#65039;</span>
+          <span class="label">Image</span>
+        </button>
+        <button class="toolbar-button" data-widget="text">
+          <span class="icon">&#x1F4DD;</span>
+          <span class="label">Text</span>
+        </button>
+        <button class="toolbar-button" data-widget="work-sym">
+          <span class="icon">&#x1F4AC;</span>
+          <span class="label">Work sym.</span>
+        </button>
+        <button class="toolbar-button" data-widget="traffic-light">
+          <span class="icon">&#x1F6A6;</span>
+          <span class="label">Traffic light</span>
+        </button>
+        <button class="toolbar-button" data-widget="timetable">
+          <span class="icon">&#x1F5D3;&#65039;</span>
+          <span class="label">Timetable</span>
+        </button>
+        <button class="toolbar-button" data-widget="timer">
+          <span class="icon">&#x23F3;</span>
+          <span class="label">Timer</span>
+        </button>
+        <button class="toolbar-button" data-widget="clock">
+          <span class="icon">&#x1F553;</span>
+          <span class="label">Clock</span>
+        </button>
+        <button class="toolbar-button" data-widget="more">
+          <span class="icon">&#x22EE;</span>
+          <span class="label">More</span>
+        </button>
+      </nav>
+
+      <footer class="status-bar">
+        <div class="status-left">
+          <button type="button" id="footerToggleBtn" class="status-toggle-btn" aria-expanded="true" title="D&ouml;lj verktygsf&auml;lt">
+            <span class="status-toggle-icon">&#x25BC;</span>
+            <span class="status-toggle-text">D&ouml;lj</span>
+          </button>
+        </div>
+        <div class="status-right">
+          <span id="statusClock"></span>
+          <span id="statusDate"></span>
+        </div>
+      </footer>
+    </div>
+
+    <dialog id="backgroundDialog">
+      <form method="dialog">
+        <header>
+          <h2>V&auml;lj bakgrund</h2>
+          <button type="submit" class="icon-button">&#x2716;&#xFE0F;</button>
+        </header>
+        <div class="background-custom">
+          <div class="background-url-group">
+            <label for="backgroundUrlInput">Klistra in bildl&auml;nk</label>
+            <div class="background-url-row">
+              <input type="url" id="backgroundUrlInput" class="background-url-input" placeholder="https://exempel.se/bild.jpg" />
+              <button type="button" id="backgroundUrlAddBtn" class="background-action-btn">L&auml;gg till</button>
+            </div>
+          </div>
+          <div class="background-upload-row">
+            <button type="button" id="backgroundFileButton" class="background-action-btn">Ladda upp bild</button>
+            <input type="file" id="backgroundFileInput" accept="image/*" hidden />
+            <span class="background-upload-hint">PNG eller JPG, max 4 MB.</span>
+          </div>
+          <div class="background-message" id="backgroundMessage"></div>
+        </div>
+        <div class="background-grid" id="backgroundGrid"></div>
+      </form>
+    </dialog>
+
+    <dialog id="moreDialog">
+      <form method="dialog">
+        <header>
+          <h2>Fler widgets</h2>
+          <button type="submit" class="icon-button">&#x2716;&#xFE0F;</button>
+        </header>
+        <div class="more-grid" id="moreGrid"></div>
+      </form>
+    </dialog>
+
+    <dialog id="adminDialog">
+      <form method="dialog">
+        <header>
+          <h2>Hantera Screens</h2>
+          <button type="submit" class="icon-button">&#x2716;&#xFE0F;</button>
+        </header>
+        <div class="admin-content">
+          <div class="admin-section">
+            <h3>Skapa ny screen</h3>
+            <div class="create-screen-form">
+              <input type="text" id="newScreenName" placeholder="Screen-namn (t.ex. Matematik 5A)" />
+              <button type="button" id="createScreenBtn" class="admin-button">Skapa</button>
+            </div>
+          </div>
+          <div class="admin-section">
+            <h3>Mina screens</h3>
+            <div class="screens-list" id="screensList"></div>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="studentHandRaiseView" class="student-view" style="display: none;">
+      <div class="student-container">
+        <h1 id="studentRoomName">Lektion</h1>
+        <div class="student-name-input">
+          <label for="studentNameInput">Ditt namn:</label>
+          <input type="text" id="studentNameInput" placeholder="Skriv ditt namn här" maxlength="50" />
+        </div>
+        <div id="studentStatus" class="student-status">
+          <button type="button" id="raiseHandBtn" class="raise-hand-btn">
+            <span class="hand-icon">✋</span>
+            <span class="hand-text">Räck upp handen</span>
+          </button>
+        </div>
+        <div id="studentInfo" class="student-info"></div>
+      </div>
+    </div>
+
+    <div id="widgetContextMenu" class="context-menu" style="display: none;">
+      <div class="context-menu-item" data-action="font-normal">Normal textstorlek</div>
+      <div class="context-menu-item" data-action="font-large">Stor text</div>
+      <div class="context-menu-item" data-action="font-xlarge">Extra stor text</div>
+      <div class="context-menu-divider"></div>
+      <div class="context-menu-item" data-action="font-reset">Återställ till global</div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
