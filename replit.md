@@ -123,13 +123,30 @@ The application is fully functional and running on Replit. It consists of:
 - Rum-baserad routing: host och viewers kopplas via rumskod
 - Meddelandetyper: join, sync-request, widget-control, widget-update, widgets-sync, screen-change, layout-reset, hand-raise
 - Automatisk roomCode/role injection i alla meddelanden
-- Host: Skapar LiveSyncClient vid rum-start, broadcast:ar widgets när 'joined', disconnectar vid stängning
-- Viewer: Sparar active room till localStorage, ansluter som viewer, skickar sync-request
-- Initial widget sync: Host broadcast:ar när den får 'joined', viewer request:ar via sync-request
-- BroadcastChannel behålls som fallback för same-device synk
+
+**Host (Lärare):**
+- Skapar LiveSyncClient vid rum-start
+- Broadcast:ar widgets när 'joined' meddelande tas emot
+- Pending broadcast buffer: Widgets som ändras under connection flushas när 'joined' triggas
+- Disconnectar vid stängning av rum
+
+**Viewer (Elev):**
+- viewer.html sparar active room till localStorage FÖRE app.js laddar
+- join.html validerar INTE mot localStorage (tillåter inkognito/cross-device joins)
+- app.js initierar LiveSyncClient som viewer när active room finns
+- Skickar sync-request när 'joined', får widgets-sync som svar
 - Viewer Lock Overlay: Visar "🔒 Styrs av läraren" när elevstyrning är av
-- CSS för .widget-viewer-lock: Semi-transparent overlay med blur-effekt
-- Debugging: Omfattande console.log för WebSocket events och widget broadcasts
+
+**Synk-mekanismer:**
+- Initial sync: Host broadcast:ar när den får 'joined' + flush av pending changes
+- Viewer sync: Viewer skickar sync-request, host svarar med widgets-sync
+- Widget updates: persist() broadcast:ar direkt om connected, annars sätts pendingBroadcast flagga
+- BroadcastChannel behålls som fallback för same-device synk
+
+**Robusthet:**
+- Pending broadcast buffer förhindrar dataförlust under LiveSync connection handshake
+- Exponential backoff vid reconnect (max 5 försök)
+- Omfattande console.log för debugging av WebSocket events och widget broadcasts
 
 ## Running the Project
 
