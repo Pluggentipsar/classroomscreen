@@ -299,8 +299,11 @@ class MediaLibraryUI {
     container.innerHTML = results.map(item => this.createItemCard(item)).join('');
     
     container.querySelectorAll('.media-item').forEach(el => {
-      const id = parseInt(el.dataset.id);
-      const item = results.find(r => r.id === id);
+      const id = el.dataset.id;
+      const source = el.dataset.source;
+      const item = results.find(r => String(r.id) === String(id) && r.source === source);
+      
+      if (!item) return;
       
       el.querySelector('.media-item-select-btn').addEventListener('click', () => {
         this.selectItem(item);
@@ -348,7 +351,7 @@ class MediaLibraryUI {
 
   selectItem(item) {
     if (this.allowMultiple) {
-      const index = this.selectedItems.findIndex(i => i.id === item.id && i.source === item.source);
+      const index = this.selectedItems.findIndex(i => String(i.id) === String(item.id) && i.source === item.source);
       if (index >= 0) {
         this.selectedItems.splice(index, 1);
       } else {
@@ -377,9 +380,9 @@ class MediaLibraryUI {
 
   updateItemSelection() {
     this.dialog.querySelectorAll('.media-item').forEach(el => {
-      const id = parseInt(el.dataset.id);
+      const id = el.dataset.id;
       const source = el.dataset.source;
-      const isSelected = this.selectedItems.some(i => i.id === id && i.source === source);
+      const isSelected = this.selectedItems.some(i => String(i.id) === String(id) && i.source === source);
       el.classList.toggle('selected', isSelected);
     });
   }
@@ -520,8 +523,11 @@ class MediaLibraryUI {
 
   attachItemCardListeners(container, items) {
     container.querySelectorAll('.media-item').forEach(el => {
-      const id = parseInt(el.dataset.id);
-      const item = items.find(r => r.id === id);
+      const id = el.dataset.id;
+      const source = el.dataset.source;
+      const item = items.find(r => String(r.id) === String(id) && r.source === source);
+      
+      if (!item) return;
       
       el.querySelector('.media-item-select-btn').addEventListener('click', () => {
         this.selectItem(item);

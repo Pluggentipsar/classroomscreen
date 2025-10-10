@@ -17,8 +17,15 @@ Classroomscreen is an interactive classroom management tool designed to create e
 - **Real-time Sync**: WebSocket for cross-device synchronization (with BroadcastChannel fallback)
 
 ### Core Features
-1.  **Widget System**: Includes Timer, Clock, Poll, Randomizer, Sound Level, Music, Image, Text, Work Symbols, Traffic Light, Timetable, Presentation, Lesson Progress, Group Maker, Scoreboard, Hand Raise, YouTube, QR Code, Step-by-step instructions, and Critical Thinking Cards.
-2.  **Media Library**: Hybrid image/symbol library with dual sources:
+1.  **Widget System**: Includes Timer, Clock, Poll, Randomizer, Sound Level, Music, Image (with slideshow), Text, Work Symbols, Traffic Light, Timetable, Presentation, Lesson Progress, Group Maker, Scoreboard, Hand Raise, YouTube, QR Code, Step-by-step instructions, and Critical Thinking Cards.
+2.  **Enhanced Image Widget**: Modern slideshow/gallery system with:
+    -   **Multi-image support**: Add multiple images via URL or media library (select multiple at once)
+    -   **Carousel navigation**: Arrow buttons (← →) to browse through images
+    -   **Image indicator**: Shows "X / Y" current position
+    -   **Fullscreen mode**: Click ⛶ button to view image in fullscreen (ESC to close)
+    -   **Delete function**: × button to remove individual images from slideshow
+    -   **Backward compatibility**: Old single-image widgets auto-convert to array format
+3.  **Media Library**: Hybrid image/symbol library with dual sources:
     -   **Pexels API**: Swedish-language photo search with 8,000+ curated photos for classroom use
     -   **ARASAAC API**: 40,000+ educational pictograms/symbols (English search)
     -   Dual-source tabs for switching between photos and pictograms
@@ -49,7 +56,7 @@ Classroomscreen is an interactive classroom management tool designed to create e
     -   **Pexels Service** (`pexels-service.js`): REST API client for Pexels with Swedish locale support (`sv-SE`). Supports curated photos and keyword search with caching. Returns optimized image URLs (thumbnail, medium, large, original) with photographer attribution. API key managed securely via environment variables.
     -   **ARASAAC Service** (`arasaac-service.js`): REST API client for ARASAAC's 40,000+ pictograms (English language due to Swedish unavailability) with caching for performance. Supports search, best-search, new items, and by-ID lookups. Generates optimized image URLs with configurable resolution (300px, 500px, 2500px) and customization options (plural, color, action, skin tone, hair color).
     -   **Media Storage** (`media-storage.js`): LocalStorage-based persistence layer managing favorites, recently used items (max 50), and user-created collections. Supports items from both Pexels and ARASAAC sources with proper source tracking. Provides defensive parsing, deduplication, and import/export functionality.
-    -   **Media Library UI** (`media-library-ui.js`): Modal dialog with source-switching tabs (Pexels/ARASAAC) and view tabs (Search, Recent, Favorites, Collections). Features real-time search with debouncing and language-appropriate placeholders (Swedish for Pexels, English for ARASAAC). Grid-based item display with photographer credits for Pexels photos. Integration buttons in Image and Presentation widgets. Glassmorphic design consistent with the application's visual language.
+    -   **Media Library UI** (`media-library-ui.js`): Modal dialog with source-switching tabs (Pexels/ARASAAC) and view tabs (Search, Recent, Favorites, Collections). Features real-time search with debouncing and language-appropriate placeholders (Swedish for Pexels, English for ARASAAC). Grid-based item display with photographer credits for Pexels photos. **Multi-select mode**: When `allowMultiple: true`, users can select multiple images (visual checkmarks), and confirm with "Lägg till valda (X)" button in header. Robust ID handling with String comparisons supports both numeric and prefixed IDs (pexels-*, arasaac-*). Integration buttons in Image and Presentation widgets. Glassmorphic design consistent with the application's visual language.
     -   **Collections System**: Allows teachers to organize images/symbols into subject-based collections (e.g., "Matte", "Svenska"). Collections are stored locally with full CRUD operations and support items from both Pexels and ARASAAC sources.
 -   **WebSocket Real-time Sync**: A WebSocket server (using the `ws` package) ensures real-time synchronization across devices.
     -   **Room-based Routing**: Host (teacher) and viewers (students) connect via a room code.
