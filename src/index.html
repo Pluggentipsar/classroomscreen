@@ -115,58 +115,28 @@
         </button>
       </main>
 
-      <nav class="toolbar" aria-label="Widgetverktyg">
-        <button class="toolbar-button" data-widget="background">
-          <span class="icon">&#x1F3A8;</span>
-          <span class="label">Background</span>
-        </button>
-        <button class="toolbar-button" data-widget="poll">
-          <span class="icon">&#x1F4CA;</span>
-          <span class="label">Poll</span>
-        </button>
-        <button class="toolbar-button" data-widget="randomizer">
-          <span class="icon">&#x1F3B2;</span>
-          <span class="label">Randomizer</span>
-        </button>
-        <button class="toolbar-button" data-widget="sound-level">
-          <span class="icon">&#x1F50A;</span>
-          <span class="label">Sound level</span>
-        </button>
-        <button class="toolbar-button" data-widget="music">
-          <span class="icon">&#x1F3B5;</span>
-          <span class="label">Music</span>
-        </button>
-        <button class="toolbar-button" data-widget="image">
-          <span class="icon">&#x1F5BC;&#65039;</span>
-          <span class="label">Image</span>
-        </button>
-        <button class="toolbar-button" data-widget="text">
-          <span class="icon">&#x1F4DD;</span>
-          <span class="label">Text</span>
-        </button>
-        <button class="toolbar-button" data-widget="work-sym">
-          <span class="icon">&#x1F4AC;</span>
-          <span class="label">Work sym.</span>
-        </button>
-        <button class="toolbar-button" data-widget="traffic-light">
-          <span class="icon">&#x1F6A6;</span>
-          <span class="label">Traffic light</span>
-        </button>
-        <button class="toolbar-button" data-widget="timetable">
-          <span class="icon">&#x1F5D3;&#65039;</span>
-          <span class="label">Timetable</span>
-        </button>
-        <button class="toolbar-button" data-widget="timer">
-          <span class="icon">&#x23F3;</span>
-          <span class="label">Timer</span>
-        </button>
-        <button class="toolbar-button" data-widget="clock">
-          <span class="icon">&#x1F553;</span>
-          <span class="label">Clock</span>
-        </button>
-        <button class="toolbar-button" data-widget="more">
+      <nav class="smart-dock" aria-label="Widgetverktyg">
+        <div class="dock-favorites" id="dockFavorites">
+          <button class="dock-icon-button" data-widget="background" title="Bakgrund">
+            <span class="icon">&#x1F3A8;</span>
+          </button>
+          <button class="dock-icon-button" data-widget="poll" title="Omröstning">
+            <span class="icon">&#x1F4CA;</span>
+          </button>
+          <button class="dock-icon-button" data-widget="randomizer" title="Namnslumpare">
+            <span class="icon">&#x1F3B2;</span>
+          </button>
+          <button class="dock-icon-button" data-widget="music" title="Musikspelare">
+            <span class="icon">&#x1F3B5;</span>
+          </button>
+          <button class="dock-icon-button" data-widget="timer" title="Timer">
+            <span class="icon">&#x23F3;</span>
+          </button>
+        </div>
+        <div class="dock-divider"></div>
+        <button class="dock-more-button" id="dockMoreButton" title="Fler widgets (Ctrl/Cmd+K)">
           <span class="icon">&#x22EE;</span>
-          <span class="label">More</span>
+          <span class="label">Mer</span>
         </button>
       </nav>
 
@@ -218,6 +188,36 @@
         <div class="more-grid" id="moreGrid"></div>
       </form>
     </dialog>
+
+    <div id="launcherOverlay" class="launcher-overlay" style="display: none;">
+      <div class="launcher-backdrop" id="launcherBackdrop"></div>
+      <div class="launcher-panel">
+        <div class="launcher-header">
+          <div class="launcher-search">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="launcherSearchInput" placeholder="Sök widgets... (Ctrl/Cmd+K)" autocomplete="off" />
+          </div>
+          <button type="button" class="launcher-close-btn" id="launcherCloseBtn">Stäng</button>
+        </div>
+
+        <div class="launcher-quick-access">
+          <div class="launcher-section">
+            <h3 class="launcher-section-title">Snabbval (favoriter)</h3>
+            <div class="launcher-chips" id="launcherFavorites"></div>
+          </div>
+          <div class="launcher-section">
+            <h3 class="launcher-section-title">Senaste</h3>
+            <div class="launcher-chips" id="launcherRecent"></div>
+          </div>
+        </div>
+
+        <div class="launcher-grid" id="launcherGrid"></div>
+
+        <p class="launcher-tip">
+          Tips: Docken visar bara favoritikoner. Tryck <kbd>Ctrl/Cmd+K</kbd> för supersnabb sökning.
+        </p>
+      </div>
+    </div>
 
     <dialog id="adminDialog">
       <form method="dialog">
