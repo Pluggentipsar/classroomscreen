@@ -49,24 +49,17 @@ body {
 
 .app-shell {
   display: grid;
-  grid-template-rows: var(--header-height) 1fr var(--toolbar-height) var(--status-bar-height);
+  grid-template-rows: var(--header-height) 1fr;
   min-height: 100vh;
   position: relative;
-  transition: grid-template-rows 0.3s ease;
-}
-
-.app-shell.footer-collapsed {
-  grid-template-rows: var(--header-height) 1fr 0 var(--status-bar-height);
 }
 
 .app-shell.ui-hidden {
-  grid-template-rows: 0 1fr 0 0;
+  grid-template-rows: 0 1fr;
 }
 
 .app-shell.ui-hidden .app-header,
-.app-shell.ui-hidden .toolbar,
-.app-shell.ui-hidden .status-bar {
-  overflow: hidden;
+.app-shell.ui-hidden .smart-dock {
   opacity: 0;
   pointer-events: none;
 }
@@ -412,6 +405,10 @@ body {
 }
 
 .smart-dock {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -421,10 +418,9 @@ body {
   border-radius: 999px;
   backdrop-filter: blur(20px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
-  position: relative;
   z-index: 100;
-  margin: 0 auto;
   width: fit-content;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .dock-favorites {
@@ -751,11 +747,6 @@ body {
   line-height: 1;
 }
 
-.app-shell.footer-collapsed .smart-dock {
-  transform: translateY(calc(100% + 24px));
-  opacity: 0;
-  pointer-events: none;
-}
 
 .app-shell.footer-collapsed .status-bar {
   padding: 6px 18px;
@@ -1598,12 +1589,16 @@ body {
 
 @media (max-width: 768px) {
   .app-shell {
-    grid-template-rows: var(--header-height) 1fr auto auto;
+    grid-template-rows: var(--header-height) 1fr;
   }
 
   .smart-dock {
-    width: 100%;
-    border-radius: 0;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: auto;
+    border-radius: 999px;
     padding: 8px 16px;
   }
 
