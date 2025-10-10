@@ -111,6 +111,12 @@ The application is fully functional and running on Replit. It consists of:
 - Hover-effekt med scale(1.1) för bättre användbarhet
 - Genomgående diskret design som inte distraherar från innehållet
 
+**Live-rum routing fix:**
+- Fixat 404-fel när elever försöker ansluta till Live-rum
+- Servern hanterar nu query parameters korrekt
+- Alla URL:er använder nu absoluta sökvägar (börjar med /)
+- Redirects mellan join.html och viewer.html fungerar felfritt
+
 ## Running the Project
 
 ### Development
