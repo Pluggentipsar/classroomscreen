@@ -22,9 +22,9 @@ The application is fully functional and running on Replit. It consists of:
 ### Technology Stack
 - **Frontend**: Pure JavaScript (no framework)
 - **Styling**: CSS with custom properties
-- **Server**: Node.js HTTP server
+- **Server**: Node.js HTTP + WebSocket server
 - **Storage**: LocalStorage for persistence
-- **Real-time**: BroadcastChannel API for teacher-student sync
+- **Real-time Sync**: WebSocket for cross-device synchronization (with BroadcastChannel fallback)
 
 ### Directory Structure
 ```
@@ -116,6 +116,18 @@ The application is fully functional and running on Replit. It consists of:
 - Servern hanterar nu query parameters korrekt
 - Alla URL:er använder nu absoluta sökvägar (börjar med /)
 - Redirects mellan join.html och viewer.html fungerar felfritt
+
+**WebSocket Cross-Device Synkning (2025-10-10):**
+- Implementerad WebSocket-server (ws package) för cross-device real-time synk
+- LiveSyncClient i app.js hanterar anslutning, reconnect med exponential backoff
+- Rum-baserad routing: host och viewers kopplas via rumskod
+- Meddelandetyper: join, sync-request, widget-control, widget-update, widgets-sync, screen-change, layout-reset, hand-raise
+- Automatisk roomCode/role injection i alla meddelanden
+- Host: Skapar LiveSyncClient vid rum-start, disconnectar vid stängning
+- Viewer: Ansluter automatiskt om aktivt rum finns i localStorage
+- BroadcastChannel behålls som fallback för same-device synk
+- Viewer Lock Overlay: Visar "🔒 Styrs av läraren" när elevstyrning är av
+- CSS för .widget-viewer-lock: Semi-transparent overlay med blur-effekt
 
 ## Running the Project
 

@@ -3570,3 +3570,41 @@ body {
   background: rgba(0, 0, 0, 0.05);
   border-left-color: #000;
 }
+
+/* Viewer Lock Overlay */
+.widget-viewer-lock {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  border-radius: 20px;
+  pointer-events: all;
+  cursor: not-allowed;
+}
+
+.viewer-lock-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  text-align: center;
+}
+
+.viewer-lock-icon {
+  font-size: 48px;
+  opacity: 0.9;
+}
+
+.viewer-lock-text {
+  font-size: 18px;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}

@@ -4782,7 +4782,7 @@
   }
 
   // ============================================================================
-  // BROADCAST FUNCTIONS FOR VIEWER SYNCHRONIZATION
+  // LIVE SYNC CLIENT - WebSocket-based cross-device synchronization
   // ============================================================================
 
   /**
@@ -4803,6 +4803,336 @@
   }
 
   /**
+   * LiveSyncClient - Manages WebSocket connection for real-time room synchronization
+   */
+  function LiveSyncClient() {
+    var self = this;
+    this.ws = null;
+    this.roomCode = null;
+    this.role = null;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 5;
+    this.reconnectDelay = 1000;
+    this.isConnecting = false;
+    this.isConnected = false;
+
+    /**
+     * Connect to WebSocket server and join a room
+     * @param {string} roomCode - Room code to join
+     * @param {string} role - 'host' or 'viewer'
+     * @param {object} meta - Additional metadata (studentId, studentName)
+     */
+    this.connect = function(roomCode, role, meta) {
+      if (self.isConnecting || (self.isConnected && self.roomCode === roomCode)) {
+        console.log("Already connecting or connected to room:", roomCode);
+        return;
+      }
+
+      self.roomCode = roomCode;
+      self.role = role;
+      self.isConnecting = true;
+
+      var wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      var wsHost = window.location.host;
+      var wsUrl = wsProtocol + '//' + wsHost;
+
+      console.log("Connecting to WebSocket:", wsUrl, "Room:", roomCode, "Role:", role);
+
+      try {
+        self.ws = new WebSocket(wsUrl);
+
+        self.ws.onopen = function() {
+          console.log("WebSocket connected");
+          self.isConnecting = false;
+          self.isConnected = true;
+          self.reconnectAttempts = 0;
+
+          // Send JOIN message
+          self.send({
+            type: 'join',
+            roomCode: roomCode,
+            role: role,
+            studentId: meta && meta.studentId || null,
+            studentName: meta && meta.studentName || null
+          });
+        };
+
+        self.ws.onmessage = function(event) {
+          try {
+            var data = JSON.parse(event.data);
+            self.handleMessage(data);
+          } catch (e) {
+            console.error("Failed to parse WebSocket message:", e);
+          }
+        };
+
+        self.ws.onerror = function(error) {
+          console.error("WebSocket error:", error);
+          self.isConnecting = false;
+          self.isConnected = false;
+        };
+
+        self.ws.onclose = function() {
+          console.log("WebSocket closed");
+          self.isConnecting = false;
+          self.isConnected = false;
+
+          // Attempt reconnection with backoff
+          if (self.reconnectAttempts < self.maxReconnectAttempts) {
+            self.reconnectAttempts++;
+            var delay = self.reconnectDelay * Math.pow(2, self.reconnectAttempts - 1);
+            console.log("Reconnecting in " + delay + "ms (attempt " + self.reconnectAttempts + ")");
+            setTimeout(function() {
+              self.connect(roomCode, role, meta);
+            }, delay);
+          } else {
+            console.error("Max reconnection attempts reached");
+          }
+        };
+      } catch (error) {
+        console.error("Failed to create WebSocket:", error);
+        self.isConnecting = false;
+        self.isConnected = false;
+      }
+    };
+
+    /**
+     * Disconnect from WebSocket
+     */
+    this.disconnect = function() {
+      self.reconnectAttempts = self.maxReconnectAttempts;
+      if (self.ws) {
+        self.ws.close();
+        self.ws = null;
+      }
+      self.isConnected = false;
+      self.isConnecting = false;
+      self.roomCode = null;
+      self.role = null;
+    };
+
+    /**
+     * Send message to WebSocket server
+     * @param {object} data - Message data
+     */
+    this.send = function(data) {
+      if (!self.ws || self.ws.readyState !== WebSocket.OPEN) {
+        console.warn("WebSocket not connected, cannot send:", data.type);
+        return false;
+      }
+
+      try {
+        // Automatically attach roomCode and role to all messages (except join)
+        var payload = data;
+        if (data.type !== 'join' && self.roomCode) {
+          payload = Object.assign({}, data, {
+            roomCode: self.roomCode,
+            role: self.role
+          });
+        }
+        self.ws.send(JSON.stringify(payload));
+        return true;
+      } catch (error) {
+        console.error("Failed to send WebSocket message:", error);
+        return false;
+      }
+    };
+
+    /**
+     * Handle incoming WebSocket messages
+     * @param {object} data - Parsed message data
+     */
+    this.handleMessage = function(data) {
+      console.log("WebSocket message received:", data.type, data);
+
+      switch (data.type) {
+        case 'joined':
+          console.log("Successfully joined room as " + data.role);
+          if (data.role === 'viewer') {
+            // Request initial sync from host
+            self.send({ type: 'sync-request' });
+          }
+          break;
+
+        case 'error':
+          console.error("Server error:", data.message);
+          break;
+
+        case 'host-online':
+          console.log("Host is online");
+          // Request sync when host comes online
+          if (self.role === 'viewer') {
+            self.send({ type: 'sync-request' });
+          }
+          break;
+
+        case 'host-offline':
+          console.log("Host is offline");
+          break;
+
+        case 'viewer-joined':
+          console.log("Viewer joined:", data.studentName || data.studentId);
+          break;
+
+        case 'viewer-left':
+          console.log("Viewer left:", data.studentName || data.studentId);
+          break;
+
+        case 'sync-request':
+          // Host: Send full snapshot to requester
+          if (self.role === 'host' && manager) {
+            self.sendWidgetsSync();
+          }
+          break;
+
+        case 'widget-control':
+          // Apply widget control state change
+          if (window.updateWidgetFromSync) {
+            window.updateWidgetFromSync(data.widgetId, data.widgetType, { 
+              controlEnabled: data.controlEnabled 
+            });
+          }
+          break;
+
+        case 'widget-update':
+          // Apply widget state update
+          if (window.updateWidgetFromSync) {
+            window.updateWidgetFromSync(data.widgetId, data.widgetType, data.payload);
+          }
+          break;
+
+        case 'widgets-sync':
+          // Sync all widgets
+          if (window.syncAllWidgets) {
+            window.syncAllWidgets(data);
+          }
+          break;
+
+        case 'screen-change':
+          // Load new screen
+          if (window.loadScreen && data.screenId) {
+            window.loadScreen(data.screenId);
+          }
+          break;
+
+        case 'layout-reset':
+          // Reset layout
+          if (window.resetViewerLayoutState) {
+            window.resetViewerLayoutState();
+          }
+          break;
+
+        case 'hand-raise':
+          // Handle hand raise from viewer
+          console.log("Hand raise from student:", data.studentName, data.raised);
+          break;
+
+        default:
+          console.warn("Unknown message type:", data.type);
+      }
+    };
+
+    /**
+     * Send widget control state change
+     */
+    this.sendWidgetControl = function(widgetId, widgetType, controlEnabled) {
+      return self.send({
+        type: 'widget-control',
+        widgetId: widgetId,
+        widgetType: widgetType,
+        controlEnabled: controlEnabled
+      });
+    };
+
+    /**
+     * Send widget state update
+     */
+    this.sendWidgetUpdate = function(widgetId, widgetType, payload) {
+      return self.send({
+        type: 'widget-update',
+        widgetId: widgetId,
+        widgetType: widgetType,
+        payload: payload
+      });
+    };
+
+    /**
+     * Send full widgets snapshot
+     */
+    this.sendWidgetsSync = function() {
+      if (!manager) {
+        console.warn("Widget manager not initialized");
+        return false;
+      }
+
+      var widgets = [];
+      var widgetElements = widgetLayer.querySelectorAll(".widget");
+      
+      for (var i = 0; i < widgetElements.length; i += 1) {
+        var widget = widgetElements[i];
+        var entry = manager.widgets[widget.getAttribute("data-id")];
+        
+        if (entry) {
+          widgets.push({
+            syncId: entry.syncId,
+            type: entry.type,
+            viewerControlEnabled: entry.viewerControlEnabled || false,
+            position: entry.position,
+            size: entry.size,
+            minimized: entry.minimized,
+            data: entry.data || {}
+          });
+        }
+      }
+
+      return self.send({
+        type: 'widgets-sync',
+        widgets: widgets
+      });
+    };
+
+    /**
+     * Send screen change notification
+     */
+    this.sendScreenChange = function(screenId) {
+      return self.send({
+        type: 'screen-change',
+        screenId: screenId
+      });
+    };
+  }
+
+  // Global LiveSync client instance
+  var liveSyncClient = null;
+
+  /**
+   * Initialize LiveSync client if in an active room
+   */
+  function initLiveSync() {
+    var roomCode = getActiveRoomCode();
+    
+    if (!roomCode) {
+      console.log("No active room - LiveSync not initialized");
+      return;
+    }
+
+    var role = window.isViewerMode ? 'viewer' : 'host';
+    var meta = {};
+
+    // Get student info if viewer
+    if (window.isViewerMode) {
+      var params = new URLSearchParams(window.location.search);
+      meta.studentId = params.get('student') || 'student-' + Date.now();
+      meta.studentName = params.get('name') || '';
+    }
+
+    liveSyncClient = new LiveSyncClient();
+    liveSyncClient.connect(roomCode, role, meta);
+    
+    console.log("LiveSync initialized - Role:", role, "Room:", roomCode);
+  }
+
+  /**
    * Broadcast widget control state change to student viewers
    * @param {string} syncId - Widget sync ID
    * @param {string} widgetType - Widget type (e.g., "timer", "clock")
@@ -4819,6 +5149,15 @@
       return;
     }
 
+    // Send via WebSocket (primary method for cross-device sync)
+    if (liveSyncClient && liveSyncClient.isConnected) {
+      liveSyncClient.sendWidgetControl(syncId, widgetType, controlEnabled);
+      console.log("Sent widget-control via WebSocket:", syncId, widgetType, controlEnabled);
+    } else {
+      console.log("WebSocket not connected, skipping broadcast");
+    }
+
+    // Fallback: BroadcastChannel for same-device sync (e.g., host and viewer in same browser)
     try {
       var channel = new BroadcastChannel("classroom-room-" + roomCode);
       channel.postMessage({
@@ -4829,9 +5168,8 @@
         timestamp: new Date().toISOString()
       });
       channel.close();
-      console.log("Broadcasted widget-control:", syncId, widgetType, controlEnabled);
     } catch (error) {
-      console.warn("BroadcastChannel not supported or failed", error);
+      // Silent fail - BroadcastChannel is just a fallback
     }
   }
 
@@ -4991,8 +5329,16 @@
             roomDialogActive.hidden = false;
           }
 
-          // Start broadcasting
+          // Start broadcasting and connect to LiveSync
           startRoomBroadcast(roomCode);
+          
+          // Initialize LiveSync for this room
+          if (liveSyncClient) {
+            liveSyncClient.disconnect();
+          }
+          liveSyncClient = new LiveSyncClient();
+          liveSyncClient.connect(roomCode, 'host', {});
+          console.log("LiveSync connected for room:", roomCode);
         } catch (error) {
           console.error("Could not start room", error);
           alert("Kunde inte starta rummet");
@@ -5009,13 +5355,19 @@
             if (roomData) {
               var room = JSON.parse(roomData);
 
-              // Broadcast room closed
+              // Broadcast room closed via BroadcastChannel (fallback)
               var channel = new BroadcastChannel("classroom-room-" + room.code);
               channel.postMessage({
                 type: "room-closed",
                 timestamp: new Date().toISOString()
               });
               channel.close();
+            }
+
+            // Disconnect LiveSync
+            if (liveSyncClient) {
+              liveSyncClient.disconnect();
+              console.log("LiveSync disconnected");
             }
 
             window.localStorage.removeItem("classroomscreen-active-room-v1");
@@ -5318,6 +5670,9 @@
     initUIToggleFab();
     initWidgetContextMenu();
     initHighContrast();
+    
+    // Initialize LiveSync for cross-device synchronization
+    initLiveSync();
 
     try {
       var savedScreenId = window.localStorage.getItem(CURRENT_SCREEN_KEY);
