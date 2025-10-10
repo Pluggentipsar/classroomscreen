@@ -2018,17 +2018,41 @@
 
         fullscreenBtn.addEventListener("click", function() {
           if (state.images.length > 0) {
+            var fullscreenIndex = state.currentIndex;
             var overlay = createElement("div", "fullscreen-overlay");
             var fullImg = createElement("img", "fullscreen-image");
-            fullImg.src = state.images[state.currentIndex].url;
+            fullImg.src = state.images[fullscreenIndex].url;
             
             var closeBtn = createElement("button", "fullscreen-close");
             closeBtn.type = "button";
             closeBtn.innerHTML = "×";
             closeBtn.title = "Stäng helskärm (ESC)";
             
+            var indicator = createElement("div", "fullscreen-indicator");
+            indicator.textContent = (fullscreenIndex + 1) + " / " + state.images.length;
+            
+            var prevFullBtn = createElement("button", "fullscreen-nav fullscreen-prev");
+            prevFullBtn.type = "button";
+            prevFullBtn.innerHTML = "&#8249;";
+            prevFullBtn.title = "Föregående (←)";
+            
+            var nextFullBtn = createElement("button", "fullscreen-nav fullscreen-next");
+            nextFullBtn.type = "button";
+            nextFullBtn.innerHTML = "&#8250;";
+            nextFullBtn.title = "Nästa (→)";
+            
+            function updateFullscreenImage() {
+              fullImg.src = state.images[fullscreenIndex].url;
+              indicator.textContent = (fullscreenIndex + 1) + " / " + state.images.length;
+              prevFullBtn.style.display = state.images.length > 1 ? "flex" : "none";
+              nextFullBtn.style.display = state.images.length > 1 ? "flex" : "none";
+            }
+            
             overlay.appendChild(fullImg);
             overlay.appendChild(closeBtn);
+            overlay.appendChild(indicator);
+            overlay.appendChild(prevFullBtn);
+            overlay.appendChild(nextFullBtn);
             document.body.appendChild(overlay);
 
             function closeFullscreen() {
@@ -2039,14 +2063,39 @@
             function handleKey(e) {
               if (e.key === "Escape") {
                 closeFullscreen();
+              } else if (e.key === "ArrowLeft") {
+                if (fullscreenIndex > 0) {
+                  fullscreenIndex--;
+                  updateFullscreenImage();
+                }
+              } else if (e.key === "ArrowRight") {
+                if (fullscreenIndex < state.images.length - 1) {
+                  fullscreenIndex++;
+                  updateFullscreenImage();
+                }
               }
             }
+
+            prevFullBtn.addEventListener("click", function() {
+              if (fullscreenIndex > 0) {
+                fullscreenIndex--;
+                updateFullscreenImage();
+              }
+            });
+
+            nextFullBtn.addEventListener("click", function() {
+              if (fullscreenIndex < state.images.length - 1) {
+                fullscreenIndex++;
+                updateFullscreenImage();
+              }
+            });
 
             closeBtn.addEventListener("click", closeFullscreen);
             overlay.addEventListener("click", function(e) {
               if (e.target === overlay) closeFullscreen();
             });
             document.addEventListener("keydown", handleKey);
+            updateFullscreenImage();
           }
         });
 
