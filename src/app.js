@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   "use strict";
 
   var widgetLayer = document.getElementById("widgetLayer");
@@ -10,6 +10,7 @@
   var appShell = document.querySelector(".app-shell");
   var backgroundDialog = document.getElementById("backgroundDialog");
   var moreDialog = document.getElementById("moreDialog");
+  var roomDialog = document.getElementById("roomDialog");
   var backgroundGrid = document.getElementById("backgroundGrid");
   var backgroundUrlInput = document.getElementById("backgroundUrlInput");
   var backgroundUrlButton = document.getElementById("backgroundUrlAddBtn");
@@ -536,6 +537,89 @@
       }
     }
   }
+
+  function findWidgetElement(node) {
+    var current = node;
+    while (current) {
+      if (current.classList && current.classList.contains("widget")) {
+        return current;
+      }
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  function canViewerInteract(element) {
+    if (!window.isViewerMode) {
+      return true;
+    }
+    var widget = findWidgetElement(element);
+    if (!widget) {
+      return true;
+    }
+    return widget.getAttribute("data-viewer-control") !== "disabled";
+  }
+
+  function updateViewerInteractivity(widget, enabled) {
+    if (!window.isViewerMode || !widget) {
+      return;
+    }
+    var allow = !!enabled;
+    widget.setAttribute("data-viewer-disabled", allow ? "false" : "true");
+    var focusableSelectors = "button, input, select, textarea, [contenteditable='true'], [tabindex]";
+    var interactive = widget.querySelectorAll(focusableSelectors);
+    for (var i = 0; i < interactive.length; i += 1) {
+      var element = interactive[i];
+      var isFormControl = typeof element.disabled === "boolean";
+      if (!allow) {
+        if (isFormControl && !element.hasAttribute("data-viewer-original-disabled")) {
+          element.setAttribute("data-viewer-original-disabled", element.disabled ? "true" : "false");
+        }
+        if (element.isContentEditable && !element.hasAttribute("data-viewer-original-contenteditable")) {
+          element.setAttribute("data-viewer-original-contenteditable", element.getAttribute("contenteditable") || "");
+        }
+        if (!element.hasAttribute("data-viewer-original-tabindex")) {
+          var originalTabIndex = element.getAttribute("tabindex");
+          element.setAttribute("data-viewer-original-tabindex", originalTabIndex !== null ? originalTabIndex : "");
+        }
+        if (isFormControl) {
+          element.disabled = true;
+        }
+        if (element.isContentEditable) {
+          element.setAttribute("contenteditable", "false");
+        }
+        element.setAttribute("tabindex", "-1");
+        element.setAttribute("data-viewer-disabled", "true");
+      } else {
+        if (isFormControl && element.hasAttribute("data-viewer-original-disabled")) {
+          var wasDisabled = element.getAttribute("data-viewer-original-disabled") === "true";
+          element.disabled = wasDisabled;
+          element.removeAttribute("data-viewer-original-disabled");
+        }
+        if (element.hasAttribute("data-viewer-original-contenteditable")) {
+          var original = element.getAttribute("data-viewer-original-contenteditable");
+          if (original === "") {
+            element.removeAttribute("contenteditable");
+          } else {
+            element.setAttribute("contenteditable", original);
+          }
+          element.removeAttribute("data-viewer-original-contenteditable");
+        }
+        if (element.hasAttribute("data-viewer-original-tabindex")) {
+          var originalTabIndexValue = element.getAttribute("data-viewer-original-tabindex");
+          if (originalTabIndexValue === "") {
+            element.removeAttribute("tabindex");
+          } else {
+            element.setAttribute("tabindex", originalTabIndexValue);
+          }
+          element.removeAttribute("data-viewer-original-tabindex");
+        } else if (element.getAttribute("tabindex") === "-1") {
+          element.removeAttribute("tabindex");
+        }
+        element.removeAttribute("data-viewer-disabled");
+      }
+    }
+  }
   var widgetFactory = {
     "clock": {
       title: "Klocka",
@@ -631,6 +715,16 @@
         container.appendChild(controls);
 
         soundRadio.addEventListener("change", function () {
+          // Block interaction if viewer mode and control is disabled
+          if (window.isViewerMode) {
+            var widget = container.closest(".widget");
+            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+            if (!viewerControlEnabled) {
+              console.log("Timer alert type change blocked - viewer control disabled");
+              return;
+            }
+          }
+
           state.alertType = "sound";
           if (typeof onChange === "function") {
             onChange();
@@ -638,6 +732,16 @@
         });
 
         visualRadio.addEventListener("change", function () {
+          // Block interaction if viewer mode and control is disabled
+          if (window.isViewerMode) {
+            var widget = container.closest(".widget");
+            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+            if (!viewerControlEnabled) {
+              console.log("Timer alert type change blocked - viewer control disabled");
+              return;
+            }
+          }
+
           state.alertType = "visual";
           if (typeof onChange === "function") {
             onChange();
@@ -663,6 +767,16 @@
         }
 
         startStop.addEventListener("click", function () {
+          // Block interaction if viewer mode and control is disabled
+          if (window.isViewerMode) {
+            var widget = container.closest(".widget");
+            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+            if (!viewerControlEnabled) {
+              console.log("Timer control blocked - viewer control disabled");
+              return;
+            }
+          }
+
           if (state.running) {
             stopTimer();
             if (typeof onChange === "function") {
@@ -694,6 +808,16 @@
         });
 
         reset.addEventListener("click", function () {
+          // Block interaction if viewer mode and control is disabled
+          if (window.isViewerMode) {
+            var widget = container.closest(".widget");
+            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+            if (!viewerControlEnabled) {
+              console.log("Timer reset blocked - viewer control disabled");
+              return;
+            }
+          }
+
           stopTimer();
           state.duration = parseInt(slider.value, 10) * 60;
           state.remaining = state.duration;
@@ -704,6 +828,16 @@
         });
 
         slider.addEventListener("input", function () {
+          // Block interaction if viewer mode and control is disabled
+          if (window.isViewerMode) {
+            var widget = container.closest(".widget");
+            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+            if (!viewerControlEnabled) {
+              console.log("Timer slider blocked - viewer control disabled");
+              return;
+            }
+          }
+
           stopTimer();
           state.duration = parseInt(slider.value, 10) * 60;
           state.remaining = state.duration;
@@ -3300,7 +3434,7 @@
     this.restore();
   }
 
-  WidgetManager.prototype.createWidget = function (type, data, position, size, minimized, fontSize, fontOverride) {
+  WidgetManager.prototype.createWidget = function (type, data, position, size, minimized, fontSize, fontOverride, syncId, viewerControlEnabledParam) {
     var config = widgetFactory[type];
     if (!config) {
       console.warn("Okänd widgettyp:", type);
@@ -3313,6 +3447,10 @@
     this.nextId += 1;
     var id = String(this.nextId);
     widget.setAttribute("data-id", id);
+    var resolvedSyncId = typeof syncId === "string" && syncId ? syncId : generateId("widget");
+    widget.setAttribute("data-sync-id", resolvedSyncId);
+    var viewerControlEnabled = typeof viewerControlEnabledParam === "boolean" ? viewerControlEnabledParam : false;
+    widget.setAttribute("data-viewer-control", viewerControlEnabled ? "enabled" : "disabled");
     widget.setAttribute("data-font-size", fontSize || globalFontSize || "normal");
     if (fontOverride) {
       widget.setAttribute("data-font-override", "true");
@@ -3329,7 +3467,14 @@
     minimizeButton.type = "button";
     minimizeButton.title = "Minimera";
     minimizeButton.className = "widget-minimize-btn";
-    minimizeButton.textContent = "−";
+    minimizeButton.textContent = "-";
+
+    var viewerControlButton = document.createElement("button");
+    viewerControlButton.type = "button";
+    viewerControlButton.className = "widget-viewer-control-btn";
+    viewerControlButton.setAttribute("data-enabled", viewerControlEnabled ? "true" : "false");
+    viewerControlButton.textContent = viewerControlEnabled ? "Elevstyrning p\u00e5" : "Elevstyrning av";
+    viewerControlButton.title = viewerControlEnabled ? "Elever kan styra denna widget" : "Elever kan inte styra denna widget";
 
     var duplicateButton = document.createElement("button");
     duplicateButton.type = "button";
@@ -3342,6 +3487,37 @@
     removeButton.textContent = "✕";
 
     var managerRef = this;
+    var content = null;
+    var viewerLockOverlay = null;
+
+    function setViewerControlState(enabled, options) {
+      var normalized = !!enabled;
+      var entry = managerRef.widgets[id];
+      viewerControlEnabled = normalized;
+      widget.setAttribute("data-viewer-control", viewerControlEnabled ? "enabled" : "disabled");
+      if (viewerControlButton) {
+        viewerControlButton.setAttribute("data-enabled", viewerControlEnabled ? "true" : "false");
+        viewerControlButton.textContent = viewerControlEnabled ? "Elevstyrning p\u00e5" : "Elevstyrning av";
+        viewerControlButton.title = viewerControlEnabled ? "Elever kan styra denna widget" : "Elever kan inte styra denna widget";
+        if (window.isViewerMode) {
+          viewerControlButton.style.display = "none";
+        }
+      }
+      if (viewerLockOverlay) {
+        viewerLockOverlay.style.display = window.isViewerMode && !viewerControlEnabled ? "flex" : "none";
+      }
+      if (entry) {
+        entry.viewerControlEnabled = viewerControlEnabled;
+      }
+      if (options && options.broadcast && entry && entry.syncId) {
+        broadcastWidgetControlState(entry.syncId, entry.type, viewerControlEnabled);
+      }
+      if (options && options.persist) {
+        managerRef.persist({ reason: "viewer-control" });
+      } else if (!options || !options.skipPersist) {
+        managerRef.persist();
+      }
+    }
 
     minimizeButton.addEventListener("click", function (event) {
       stopEvent(event);
@@ -3358,6 +3534,14 @@
       managerRef.persist();
     });
 
+    viewerControlButton.addEventListener("click", function (event) {
+      stopEvent(event);
+      if (window.isViewerMode) {
+        return;
+      }
+      setViewerControlState(!viewerControlEnabled, { broadcast: true, persist: true });
+    });
+
     duplicateButton.addEventListener("click", function (event) {
       stopEvent(event);
       managerRef.duplicate(id);
@@ -3368,13 +3552,14 @@
       managerRef.remove(id);
     });
 
+    actions.appendChild(viewerControlButton);
     actions.appendChild(minimizeButton);
     actions.appendChild(duplicateButton);
     actions.appendChild(removeButton);
     header.appendChild(actions);
     widget.appendChild(header);
 
-    var content = createElement("div", "widget-content");
+    content = createElement("div", "widget-content");
     widget.appendChild(content);
 
     var resizeHandle = createElement("div", "resize-handle");
@@ -3391,6 +3576,13 @@
     };
 
     config.render(content, initialData, handleChange, widget);
+
+    viewerLockOverlay = createElement("div", "widget-viewer-lock");
+    viewerLockOverlay.innerHTML = '<div class="viewer-lock-content"><span class="viewer-lock-icon">&#x1F512;</span><span class="viewer-lock-text">Styrs av l\u00e4raren</span></div>';
+    content.appendChild(viewerLockOverlay);
+    widget._viewerOverlay = viewerLockOverlay;
+    widget._setViewerControlState = setViewerControlState;
+    setViewerControlState(viewerControlEnabled, { force: true, skipPersist: true });
 
     var bounds = this.layer.getBoundingClientRect();
     var defaultPosition = position || {
@@ -3423,7 +3615,9 @@
     this.makeResizable(widget);
 
     this.widgets[id] = {
+      syncId: resolvedSyncId,
       type: type,
+      viewerControlEnabled: viewerControlEnabled,
       save: typeof config.save === "function" ? config.save : function () { return null; },
       destroy: typeof config.destroy === "function" ? config.destroy : function () {}
     };
@@ -3455,7 +3649,7 @@
     var minimized = origin.getAttribute("data-minimized") === "true";
     var fontSize = origin.getAttribute("data-font-size");
     var fontOverride = origin.getAttribute("data-font-override") === "true";
-    this.createWidget(entry.type, data, position, size, minimized, fontSize, fontOverride);
+    this.createWidget(entry.type, data, position, size, minimized, fontSize, fontOverride, null, entry.viewerControlEnabled);
   };
 
   WidgetManager.prototype.remove = function (id) {
@@ -3604,6 +3798,12 @@
         widgetData.fontOverride = true;
       }
 
+      var syncId = entry && entry.syncId ? entry.syncId : widget.getAttribute("data-sync-id");
+      if (syncId) {
+        widgetData.syncId = syncId;
+      }
+      widgetData.viewerControlEnabled = entry && entry.viewerControlEnabled === true;
+
       snapshot.push(widgetData);
     }
 
@@ -3617,6 +3817,19 @@
         saveScreen(currentScreenId, state);
       } else {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      // Broadcast to students if room is active
+      if (!window.isViewerMode) {
+        try {
+          var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
+          if (roomData) {
+            var room = JSON.parse(roomData);
+            broadcastAllWidgets(room.code);
+          }
+        } catch (broadcastError) {
+          console.warn("Could not broadcast widgets", broadcastError);
+        }
       }
     } catch (error) {
       console.error("Kunde inte spara state", error);
@@ -3644,7 +3857,7 @@
       if (state.widgets && state.widgets.length) {
         for (var i = 0; i < state.widgets.length; i += 1) {
           var item = state.widgets[i];
-          this.createWidget(item.type, item.data, item.position, item.size, item.minimized, item.fontSize, item.fontOverride);
+          this.createWidget(item.type, item.data, item.position, item.size, item.minimized, item.fontSize, item.fontOverride, item.syncId, item.viewerControlEnabled);
         }
       }
     } catch (error) {
@@ -3758,7 +3971,7 @@
         if (state.widgets && state.widgets.length) {
           for (var j = 0; j < state.widgets.length; j += 1) {
             var item = state.widgets[j];
-            manager.createWidget(item.type, item.data, item.position, item.size, item.minimized);
+            manager.createWidget(item.type, item.data, item.position, item.size, item.minimized, item.fontSize, item.fontOverride, item.syncId, item.viewerControlEnabled);
           }
         }
         return;
@@ -3879,6 +4092,9 @@
   }
 
   function initToolbar() {
+    if (!toolbar) {
+      return;
+    }
     toolbar.addEventListener("click", function (event) {
       var button = findToolbarButton(event.target);
       if (!button) {
@@ -4259,36 +4475,136 @@
 
   function initHeaderActions() {
     var header = document.querySelector(".app-header");
+    var headerDrawer = document.getElementById("headerDrawer");
+
     if (!header) {
       return;
     }
-    header.addEventListener("click", function (event) {
+
+    // Initialize drawer as hidden
+    if (headerDrawer) {
+      headerDrawer.setAttribute("aria-hidden", "true");
+    }
+
+    // Initialize symbol library as hidden
+    var symbolOverlay = document.getElementById("symbolLibraryOverlay");
+    if (symbolOverlay) {
+      symbolOverlay.setAttribute("aria-hidden", "true");
+
+      // Close symbol library when clicking outside
+      symbolOverlay.addEventListener("click", function (event) {
+        if (event.target === symbolOverlay) {
+          symbolOverlay.setAttribute("aria-hidden", "true");
+        }
+      });
+    }
+
+    // Toggle menu function
+    function toggleMenu() {
+      if (!headerDrawer) {
+        return;
+      }
+      var isHidden = headerDrawer.getAttribute("aria-hidden") === "true";
+      headerDrawer.setAttribute("aria-hidden", isHidden ? "false" : "true");
+    }
+
+    // Close menu function
+    function closeMenu() {
+      if (headerDrawer) {
+        headerDrawer.setAttribute("aria-hidden", "true");
+      }
+    }
+
+    // Handle clicks on action buttons (both in header and drawer)
+    function handleActionClick(event) {
       var button = event.target.closest("button[data-action]");
       if (!button) {
         return;
       }
       var action = button.getAttribute("data-action");
+
+      if (action === "toggle-menu") {
+        toggleMenu();
+        return;
+      }
+      if (action === "close-menu") {
+        closeMenu();
+        return;
+      }
       if (action === "auto-arrange") {
         autoArrangeWidgets();
+        closeMenu();
+        return;
+      }
+      if (action === "home") {
+        // Go to home screen (clear current screen)
+        currentScreenId = null;
+        try {
+          window.localStorage.removeItem(CURRENT_SCREEN_KEY);
+        } catch (error) {
+          console.error("Could not clear current screen", error);
+        }
+        window.location.reload();
         return;
       }
       if (action === "font-size") {
         toggleGlobalFontSize();
+        closeMenu();
         return;
       }
       if (action === "fullscreen") {
         toggleFullscreen();
+        closeMenu();
         return;
       }
       if (action === "toggle-widgets") {
         toggleWidgets();
+        closeMenu();
         return;
       }
       if (action === "toggle-ui") {
         toggleUI();
+        closeMenu();
+        return;
+      }
+      if (action === "library") {
+        // Open symbol library
+        var symbolOverlay = document.getElementById("symbolLibraryOverlay");
+        if (symbolOverlay) {
+          symbolOverlay.setAttribute("aria-hidden", "false");
+        }
+        closeMenu();
+        return;
+      }
+      if (action === "open-symbol-library") {
+        var symbolOverlay = document.getElementById("symbolLibraryOverlay");
+        if (symbolOverlay) {
+          symbolOverlay.setAttribute("aria-hidden", "false");
+        }
+        closeMenu();
+        return;
+      }
+      if (action === "close-symbol-library") {
+        var symbolOverlay = document.getElementById("symbolLibraryOverlay");
+        if (symbolOverlay) {
+          symbolOverlay.setAttribute("aria-hidden", "true");
+        }
+        return;
+      }
+      if (action === "settings") {
+        // Settings functionality (could open a settings dialog)
+        alert("Inställningar kommer snart!");
+        closeMenu();
+        return;
+      }
+      if (action === "room-control") {
+        if (roomDialog && typeof roomDialog.showModal === "function") {
+          roomDialog.showModal();
+        }
         return;
       }
       if (action === "admin") {
+        closeMenu();
         if (adminDialog && typeof adminDialog.showModal === "function") {
           adminDialog.showModal();
           var screensList = document.getElementById("screensList");
@@ -4362,7 +4678,30 @@
           }
         }
       }
-    });
+    }
+
+    // Attach event listeners to both header and drawer
+    header.addEventListener("click", handleActionClick);
+    if (headerDrawer) {
+      headerDrawer.addEventListener("click", handleActionClick);
+    }
+
+    // Close menu when clicking on backdrop
+    if (headerDrawer) {
+      headerDrawer.addEventListener("click", function (event) {
+        // Check if the click was on the backdrop (not on the drawer itself)
+        if (event.target.classList.contains("header-drawer-backdrop")) {
+          closeMenu();
+        }
+      });
+
+      // Close menu on Escape key
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && headerDrawer.getAttribute("aria-hidden") === "false") {
+          closeMenu();
+        }
+      });
+    }
   }
 
   function initUIToggleFab() {
@@ -4375,6 +4714,485 @@
     });
   }
 
+  // ============================================================================
+  // BROADCAST FUNCTIONS FOR VIEWER SYNCHRONIZATION
+  // ============================================================================
+
+  /**
+   * Get the active room code from localStorage
+   * @returns {string|null} Room code or null if no active room
+   */
+  function getActiveRoomCode() {
+    try {
+      var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
+      if (roomData) {
+        var room = JSON.parse(roomData);
+        return room.code || null;
+      }
+    } catch (error) {
+      console.warn("Could not get active room code", error);
+    }
+    return null;
+  }
+
+  /**
+   * Broadcast widget control state change to student viewers
+   * @param {string} syncId - Widget sync ID
+   * @param {string} widgetType - Widget type (e.g., "timer", "clock")
+   * @param {boolean} controlEnabled - Whether students can control this widget
+   */
+  function broadcastWidgetControlState(syncId, widgetType, controlEnabled) {
+    if (window.isViewerMode) {
+      return; // Students can't broadcast
+    }
+
+    var roomCode = getActiveRoomCode();
+    if (!roomCode) {
+      console.log("No active room - widget control state not broadcasted");
+      return;
+    }
+
+    try {
+      var channel = new BroadcastChannel("classroom-room-" + roomCode);
+      channel.postMessage({
+        type: "widget-control",
+        widgetId: syncId,
+        widgetType: widgetType,
+        controlEnabled: controlEnabled,
+        timestamp: new Date().toISOString()
+      });
+      channel.close();
+      console.log("Broadcasted widget-control:", syncId, widgetType, controlEnabled);
+    } catch (error) {
+      console.warn("BroadcastChannel not supported or failed", error);
+    }
+  }
+
+  /**
+   * Update a single widget from synchronization data (called by viewer)
+   * @param {string} widgetId - Widget sync ID
+   * @param {string} widgetType - Widget type
+   * @param {object} updateData - Data to update (e.g., {controlEnabled: true})
+   */
+  window.updateWidgetFromSync = function (widgetId, widgetType, updateData) {
+    if (!manager) {
+      console.warn("Widget manager not initialized");
+      return;
+    }
+
+    // Find the widget by syncId
+    var widgets = widgetLayer.querySelectorAll(".widget");
+    for (var i = 0; i < widgets.length; i += 1) {
+      var widget = widgets[i];
+      var entry = manager.widgets[widget.getAttribute("data-id")];
+
+      if (entry && entry.syncId === widgetId) {
+        // Update viewer control state if provided
+        if (updateData.hasOwnProperty("controlEnabled") && widget._setViewerControlState) {
+          widget._setViewerControlState(updateData.controlEnabled, { skipPersist: true, broadcast: false });
+          console.log("Updated widget control state:", widgetId, updateData.controlEnabled);
+        }
+
+        // Future: Add more update types here (e.g., widget state sync)
+        return;
+      }
+    }
+
+    console.warn("Widget not found for sync update:", widgetId);
+  };
+
+  /**
+   * Sync all widgets from teacher snapshot (called by viewer)
+   * @param {object} data - Snapshot data containing widgets array
+   */
+  window.syncAllWidgets = function (data) {
+    if (!manager || !data || !data.widgets) {
+      console.warn("Cannot sync widgets - invalid data or manager not ready");
+      return;
+    }
+
+    console.log("Syncing all widgets from teacher, count:", data.widgets.length);
+
+    // For each widget in the snapshot
+    for (var i = 0; i < data.widgets.length; i += 1) {
+      var widgetData = data.widgets[i];
+      if (!widgetData.syncId) {
+        continue;
+      }
+
+      // Find matching widget in viewer by syncId
+      var widgets = widgetLayer.querySelectorAll(".widget");
+      var found = false;
+
+      for (var j = 0; j < widgets.length; j += 1) {
+        var widget = widgets[j];
+        var entry = manager.widgets[widget.getAttribute("data-id")];
+
+        if (entry && entry.syncId === widgetData.syncId) {
+          found = true;
+
+          // Update viewer control state
+          if (widgetData.hasOwnProperty("viewerControlEnabled") && widget._setViewerControlState) {
+            widget._setViewerControlState(widgetData.viewerControlEnabled, {
+              skipPersist: true,
+              broadcast: false
+            });
+          }
+
+          // Future: Sync other widget properties (position, size, data, etc.)
+          break;
+        }
+      }
+
+      if (!found) {
+        console.log("Widget not found in viewer for sync:", widgetData.syncId, widgetData.type);
+      }
+    }
+
+    console.log("Widget sync complete");
+  };
+
+  function initRoomDialog() {
+    if (!roomDialog) {
+      return;
+    }
+
+    var roomStartButton = document.getElementById("roomStartButton");
+    var roomCloseButton = document.getElementById("roomCloseButton");
+    var roomCopyLinkButton = document.getElementById("roomCopyLinkButton");
+    var roomOpenViewerButton = document.getElementById("roomOpenViewerButton");
+    var roomResyncButton = document.getElementById("roomResyncButton");
+    var roomNameInput = document.getElementById("roomNameInput");
+    var roomCodeValue = document.getElementById("roomCodeValue");
+    var roomCodeUpdatedAt = document.getElementById("roomCodeUpdatedAt");
+    var roomJoinLinkPreview = document.getElementById("roomJoinLinkPreview");
+    var roomDialogInactive = document.getElementById("roomDialogInactive");
+    var roomDialogActive = document.getElementById("roomDialogActive");
+    var roomStudentList = document.getElementById("roomStudentList");
+    var roomStudentCount = document.getElementById("roomStudentCount");
+    var roomEmptyState = document.getElementById("roomEmptyState");
+
+    // Generate random room code
+    function generateRoomCode() {
+      var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      var code = "";
+      for (var i = 0; i < 6; i += 1) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+
+    // Start room
+    if (roomStartButton) {
+      roomStartButton.addEventListener("click", function() {
+        var roomName = roomNameInput ? roomNameInput.value.trim() : "";
+        if (!roomName) {
+          roomName = "Lektion";
+        }
+
+        var roomCode = generateRoomCode();
+        var roomData = {
+          code: roomCode,
+          name: roomName,
+          createdAt: new Date().toISOString(),
+          screenId: currentScreenId,
+          lessonId: null,
+          screenIndex: 0
+        };
+
+        try {
+          window.localStorage.setItem("classroomscreen-active-room-v1", JSON.stringify(roomData));
+
+          // Update UI
+          if (roomCodeValue) {
+            roomCodeValue.textContent = roomCode;
+          }
+          if (roomCodeUpdatedAt) {
+            var now = new Date();
+            roomCodeUpdatedAt.textContent = "Skapad " + now.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+          }
+          if (roomJoinLinkPreview) {
+            var joinUrl = window.location.origin + window.location.pathname.replace("index.html", "") + "join.html?room=" + roomCode;
+            roomJoinLinkPreview.textContent = joinUrl;
+          }
+
+          // Show active state
+          if (roomDialogInactive) {
+            roomDialogInactive.hidden = true;
+          }
+          if (roomDialogActive) {
+            roomDialogActive.hidden = false;
+          }
+
+          // Start broadcasting
+          startRoomBroadcast(roomCode);
+        } catch (error) {
+          console.error("Could not start room", error);
+          alert("Kunde inte starta rummet");
+        }
+      });
+    }
+
+    // Close room
+    if (roomCloseButton) {
+      roomCloseButton.addEventListener("click", function() {
+        if (confirm("Är du säker på att du vill avsluta rummet?")) {
+          try {
+            var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
+            if (roomData) {
+              var room = JSON.parse(roomData);
+
+              // Broadcast room closed
+              var channel = new BroadcastChannel("classroom-room-" + room.code);
+              channel.postMessage({
+                type: "room-closed",
+                timestamp: new Date().toISOString()
+              });
+              channel.close();
+            }
+
+            window.localStorage.removeItem("classroomscreen-active-room-v1");
+            window.localStorage.removeItem("classroomscreen-room-students-v1");
+
+            // Reset UI
+            if (roomDialogInactive) {
+              roomDialogInactive.hidden = false;
+            }
+            if (roomDialogActive) {
+              roomDialogActive.hidden = true;
+            }
+            if (roomNameInput) {
+              roomNameInput.value = "";
+            }
+          } catch (error) {
+            console.error("Could not close room", error);
+          }
+        }
+      });
+    }
+
+    // Copy link
+    if (roomCopyLinkButton) {
+      roomCopyLinkButton.addEventListener("click", function() {
+        if (roomJoinLinkPreview) {
+          var text = roomJoinLinkPreview.textContent;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+              alert("Länk kopierad!");
+            }).catch(function() {
+              alert("Kunde inte kopiera länk");
+            });
+          } else {
+            alert("Kopiera denna länk: " + text);
+          }
+        }
+      });
+    }
+
+    // Open viewer
+    if (roomOpenViewerButton) {
+      roomOpenViewerButton.addEventListener("click", function() {
+        try {
+          var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
+          if (roomData) {
+            var room = JSON.parse(roomData);
+            var viewerUrl = window.location.origin + window.location.pathname.replace("index.html", "") + "viewer.html?room=" + room.code + "&student=teacher-preview";
+            window.open(viewerUrl, "_blank");
+          }
+        } catch (error) {
+          console.error("Could not open viewer", error);
+        }
+      });
+    }
+
+    // Resync widgets
+    if (roomResyncButton) {
+      roomResyncButton.addEventListener("click", function() {
+        try {
+          var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
+          if (roomData) {
+            var room = JSON.parse(roomData);
+            broadcastAllWidgets(room.code);
+            alert("Widgets synkade!");
+          }
+        } catch (error) {
+          console.error("Could not resync", error);
+        }
+      });
+    }
+
+    // Check if room is active when dialog opens
+    roomDialog.addEventListener("show", function() {
+      try {
+        var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
+        if (roomData) {
+          var room = JSON.parse(roomData);
+
+          // Show active state
+          if (roomCodeValue) {
+            roomCodeValue.textContent = room.code;
+          }
+          if (roomCodeUpdatedAt && room.createdAt) {
+            var createdDate = new Date(room.createdAt);
+            roomCodeUpdatedAt.textContent = "Skapad " + createdDate.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+          }
+          if (roomJoinLinkPreview) {
+            var joinUrl = window.location.origin + window.location.pathname.replace("index.html", "") + "join.html?room=" + room.code;
+            roomJoinLinkPreview.textContent = joinUrl;
+          }
+          if (roomDialogInactive) {
+            roomDialogInactive.hidden = true;
+          }
+          if (roomDialogActive) {
+            roomDialogActive.hidden = false;
+          }
+
+          updateStudentList();
+        } else {
+          // Show inactive state
+          if (roomDialogInactive) {
+            roomDialogInactive.hidden = false;
+          }
+          if (roomDialogActive) {
+            roomDialogActive.hidden = true;
+          }
+        }
+      } catch (error) {
+        console.error("Could not check room status", error);
+      }
+    });
+
+    function updateStudentList() {
+      if (!roomStudentList || !roomStudentCount) {
+        return;
+      }
+
+      try {
+        var studentsData = window.localStorage.getItem("classroomscreen-room-students-v1");
+        var students = studentsData ? JSON.parse(studentsData) : [];
+
+        clearChildren(roomStudentList);
+
+        if (students.length === 0) {
+          if (roomEmptyState) {
+            roomEmptyState.style.display = "block";
+          }
+          roomStudentCount.textContent = "0";
+          return;
+        }
+
+        if (roomEmptyState) {
+          roomEmptyState.style.display = "none";
+        }
+        roomStudentCount.textContent = String(students.length);
+
+        for (var i = 0; i < students.length; i += 1) {
+          var student = students[i];
+          var li = document.createElement("li");
+          li.className = "room-student-item";
+          if (student.handRaised) {
+            li.className += " hand-raised";
+          }
+
+          // Student info container
+          var infoDiv = document.createElement("div");
+          infoDiv.className = "room-student-info";
+
+          // Avatar
+          var avatar = document.createElement("div");
+          avatar.className = "room-student-avatar";
+          if (student.handRaised) {
+            avatar.className += " hand-raised";
+          }
+          var studentName = student.name || ("Elev " + (i + 1));
+          var initial = studentName.charAt(0).toUpperCase();
+          avatar.textContent = initial;
+
+          // Details
+          var detailsDiv = document.createElement("div");
+          detailsDiv.className = "room-student-details";
+
+          var nameSpan = document.createElement("span");
+          nameSpan.className = "room-student-name";
+          nameSpan.textContent = studentName;
+
+          var metaSpan = document.createElement("span");
+          metaSpan.className = "room-student-meta";
+          if (student.handRaised) {
+            metaSpan.textContent = "✋ Räcker upp handen";
+          } else if (student.joinedAt) {
+            var joinDate = new Date(student.joinedAt);
+            metaSpan.textContent = "Anslöt " + joinDate.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+          } else {
+            metaSpan.textContent = "Ansluten";
+          }
+
+          detailsDiv.appendChild(nameSpan);
+          detailsDiv.appendChild(metaSpan);
+
+          infoDiv.appendChild(avatar);
+          infoDiv.appendChild(detailsDiv);
+
+          // Actions container
+          var actionsDiv = document.createElement("div");
+          actionsDiv.className = "room-student-actions";
+
+          // Remove button
+          var removeBtn = document.createElement("button");
+          removeBtn.className = "room-student-remove-btn";
+          removeBtn.textContent = "×";
+          removeBtn.title = "Ta bort elev";
+          removeBtn.type = "button";
+          removeBtn.setAttribute("data-student-id", student.id);
+          removeBtn.addEventListener("click", function(e) {
+            var studentId = e.target.getAttribute("data-student-id");
+            if (confirm("Ta bort denna elev från rummet?")) {
+              removeStudentFromRoom(studentId);
+            }
+          });
+
+          actionsDiv.appendChild(removeBtn);
+
+          li.appendChild(infoDiv);
+          li.appendChild(actionsDiv);
+          roomStudentList.appendChild(li);
+        }
+      } catch (error) {
+        console.error("Could not update student list", error);
+      }
+    }
+
+    function removeStudentFromRoom(studentId) {
+      try {
+        var studentsData = window.localStorage.getItem("classroomscreen-room-students-v1");
+        var students = studentsData ? JSON.parse(studentsData) : [];
+        var filtered = [];
+        for (var i = 0; i < students.length; i += 1) {
+          if (students[i] && students[i].id !== studentId) {
+            filtered.push(students[i]);
+          }
+        }
+        window.localStorage.setItem("classroomscreen-room-students-v1", JSON.stringify(filtered));
+        updateStudentList();
+      } catch (error) {
+        console.error("Could not remove student", error);
+      }
+    }
+
+    function startRoomBroadcast(roomCode) {
+      // Broadcast initial widget state
+      broadcastAllWidgets(roomCode);
+    }
+
+    // Listen for student updates
+    setInterval(function() {
+      if (roomDialog && !roomDialog.hasAttribute("open")) {
+        return;
+      }
+      updateStudentList();
+    }, 2000);
+  }
+
   function initApp() {
     manager = new WidgetManager(widgetLayer);
     setBackground(currentBackground, { skipPersist: true, skipHighlight: true });
@@ -4383,6 +5201,7 @@
     initToolbar();
     initStatusBar();
     initAdminDialog();
+    initRoomDialog();
     initHeaderActions();
     initUIToggleFab();
     initWidgetContextMenu();

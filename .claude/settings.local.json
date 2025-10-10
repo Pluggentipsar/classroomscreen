@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(start src/index.html)",
+      "Bash(start \"\" \"c:\\Codex\\Classroomscreen\\src\\viewer.html?room=TEST123&student=student-test\")",
+      "Read(//c//**)",
+      "Bash(npm run dev:src:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
