@@ -1207,6 +1207,13 @@ body {
   box-shadow: 0 12px 24px -14px rgba(63, 81, 181, 0.45);
 }
 
+.background-library-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .background-upload-row {
   display: flex;
   align-items: center;
