@@ -670,10 +670,12 @@
       render: function (container, data, onChange) {
         var minutes = data && typeof data.minutes === "number" ? data.minutes : 5;
         var alertType = data && data.alertType ? data.alertType : "sound";
+        var running = data && data.running === true ? true : false;
+        var remaining = data && typeof data.remaining === "number" ? data.remaining : (minutes * 60);
         var state = {
           duration: minutes * 60,
-          remaining: minutes * 60,
-          running: false,
+          remaining: remaining,
+          running: false, // Will be started by load() if needed
           interval: null,
           alertType: alertType,
           minutes: minutes
@@ -946,9 +948,13 @@
         };
       },
       load: function (widget, data) {
+        console.log("Timer load() called with data:", data);
         var content = widget.querySelector(".widget-content");
         var state = content && content._state;
-        if (!state) return;
+        if (!state) {
+          console.log("Timer load() - no state found, aborting");
+          return;
+        }
         
         // Update state from synced data
         if (data.minutes !== undefined) {
@@ -980,9 +986,11 @@
         // Handle running state
         var wasRunning = state.running;
         var shouldBeRunning = data.running === true;
+        console.log("Timer load() - wasRunning:", wasRunning, "shouldBeRunning:", shouldBeRunning);
         
         if (shouldBeRunning && !wasRunning) {
           // Start timer
+          console.log("Timer load() - STARTING timer with remaining:", state.remaining);
           state.running = true;
           var startStop = content.querySelector("button[data-state]");
           if (startStop) {
