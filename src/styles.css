@@ -4053,7 +4053,7 @@ body {
 
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 16px;
   padding: 24px;
 }
@@ -4113,6 +4113,7 @@ body {
   display: flex;
   gap: 4px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .media-item-actions button {
@@ -4124,6 +4125,8 @@ body {
   font-size: 12px;
   transition: all 0.2s;
   flex: 1;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .media-item-actions button:hover {
