@@ -4,7 +4,7 @@ class PexelsService {
   constructor() {
     this.apiKey = null;
     this.cache = new Map();
-    this.initApiKey();
+    this.apiKeyPromise = this.initApiKey();
   }
 
   async initApiKey() {
@@ -13,10 +13,19 @@ class PexelsService {
       if (response.ok) {
         const data = await response.json();
         this.apiKey = data.apiKey;
+        return this.apiKey;
       }
     } catch (error) {
       console.error('Error loading Pexels API key:', error);
     }
+    return null;
+  }
+
+  async ensureApiKey() {
+    if (!this.apiKey) {
+      await this.apiKeyPromise;
+    }
+    return this.apiKey;
   }
 
   async searchPhotos(query, language = 'sv', perPage = 30) {
@@ -24,8 +33,9 @@ class PexelsService {
       return [];
     }
 
+    await this.ensureApiKey();
     if (!this.apiKey) {
-      console.warn('Pexels API key not loaded yet');
+      console.warn('Pexels API key not available');
       return [];
     }
 
@@ -73,8 +83,9 @@ class PexelsService {
   }
 
   async getCuratedPhotos(perPage = 30) {
+    await this.ensureApiKey();
     if (!this.apiKey) {
-      console.warn('Pexels API key not loaded yet');
+      console.warn('Pexels API key not available');
       return [];
     }
 
