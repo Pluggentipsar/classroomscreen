@@ -42,6 +42,8 @@
   var STORAGE_KEY = "classroomscreen-state-v1";
   var SCREENS_KEY = "classroomscreen-screens-v1";
   var CURRENT_SCREEN_KEY = "classroomscreen-current-screen-v1";
+  var LESSONS_KEY = "classroomscreen-lessons-v1";
+  var CURRENT_LESSON_KEY = "classroomscreen-current-lesson-v1";
   var FOOTER_COLLAPSED_KEY = "classroomscreen-footer-collapsed-v1";
 
   var BUILT_IN_BACKGROUNDS = [
@@ -229,6 +231,8 @@
   var currentBackground = backgrounds[0].url;
   var manager = null;
   var currentScreenId = null;
+  var currentLessonId = null;
+  var currentLessonIndex = 0;
   var adminDialog = null;
   var widgetsVisible = true;
   var uiVisible = true;
@@ -4730,7 +4734,7 @@
     }
   }
 
-  function createScreen(name) {
+  function createScreen(name, description) {
     if (!canUseStorage) {
       return null;
     }
@@ -4739,6 +4743,7 @@
     var newScreen = {
       id: id,
       name: name,
+      description: description || "",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       state: {
@@ -4815,6 +4820,223 @@
       }
       widget.remove();
       delete manager.widgets[id];
+    }
+  }
+
+  function getAllLessons() {
+    if (!canUseStorage) {
+      return [];
+    }
+    try {
+      var data = window.localStorage.getItem(LESSONS_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error("Kunde inte läsa lektioner", error);
+      return [];
+    }
+  }
+
+  function saveLesson(id, lessonData) {
+    if (!canUseStorage) {
+      return;
+    }
+    var lessons = getAllLessons();
+    var index = -1;
+    for (var i = 0; i < lessons.length; i += 1) {
+      if (lessons[i].id === id) {
+        index = i;
+        break;
+      }
+    }
+    if (index !== -1) {
+      lessons[index] = Object.assign({}, lessonData, {
+        id: id,
+        updatedAt: new Date().toISOString()
+      });
+    }
+    try {
+      window.localStorage.setItem(LESSONS_KEY, JSON.stringify(lessons));
+    } catch (error) {
+      console.error("Kunde inte spara lektion", error);
+    }
+  }
+
+  function createLesson(name) {
+    if (!canUseStorage) {
+      return null;
+    }
+    var lessons = getAllLessons();
+    var id = "lesson-" + Date.now();
+    var newLesson = {
+      id: id,
+      name: name,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      mainScreenId: null,
+      screenSequence: [],
+      currentIndex: 0
+    };
+    lessons.push(newLesson);
+    try {
+      window.localStorage.setItem(LESSONS_KEY, JSON.stringify(lessons));
+      return newLesson;
+    } catch (error) {
+      console.error("Kunde inte skapa lektion", error);
+      return null;
+    }
+  }
+
+  function deleteLesson(id) {
+    if (!canUseStorage) {
+      return;
+    }
+    var lessons = getAllLessons();
+    var filtered = [];
+    for (var i = 0; i < lessons.length; i += 1) {
+      if (lessons[i].id !== id) {
+        filtered.push(lessons[i]);
+      }
+    }
+    try {
+      window.localStorage.setItem(LESSONS_KEY, JSON.stringify(filtered));
+      if (currentLessonId === id) {
+        currentLessonId = null;
+        currentLessonIndex = 0;
+        window.localStorage.removeItem(CURRENT_LESSON_KEY);
+      }
+    } catch (error) {
+      console.error("Kunde inte ta bort lektion", error);
+    }
+  }
+
+  function loadLesson(id) {
+    var lessons = getAllLessons();
+    for (var i = 0; i < lessons.length; i += 1) {
+      if (lessons[i].id === id) {
+        currentLessonId = id;
+        currentLessonIndex = lessons[i].currentIndex || 0;
+        try {
+          window.localStorage.setItem(CURRENT_LESSON_KEY, id);
+        } catch (error) {
+          console.error("Kunde inte spara aktuell lektion", error);
+        }
+        
+        if (lessons[i].screenSequence && lessons[i].screenSequence.length > 0) {
+          var screenId = lessons[i].screenSequence[currentLessonIndex];
+          if (screenId) {
+            loadScreen(screenId);
+          }
+        }
+        
+        updateLessonIndicator();
+        return lessons[i];
+      }
+    }
+    return null;
+  }
+
+  function duplicateLesson(id) {
+    if (!canUseStorage) {
+      return null;
+    }
+    var lessons = getAllLessons();
+    for (var i = 0; i < lessons.length; i += 1) {
+      if (lessons[i].id === id) {
+        var original = lessons[i];
+        var newLesson = {
+          id: "lesson-" + Date.now(),
+          name: original.name + " (kopia)",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          mainScreenId: original.mainScreenId,
+          screenSequence: original.screenSequence.slice(),
+          currentIndex: 0
+        };
+        lessons.push(newLesson);
+        try {
+          window.localStorage.setItem(LESSONS_KEY, JSON.stringify(lessons));
+          return newLesson;
+        } catch (error) {
+          console.error("Kunde inte duplicera lektion", error);
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+
+  function navigateLesson(direction) {
+    if (!currentLessonId) {
+      return;
+    }
+    
+    var lessons = getAllLessons();
+    for (var i = 0; i < lessons.length; i += 1) {
+      if (lessons[i].id === currentLessonId) {
+        var lesson = lessons[i];
+        
+        if (direction === "prev" && currentLessonIndex > 0) {
+          currentLessonIndex -= 1;
+        } else if (direction === "next" && currentLessonIndex < lesson.screenSequence.length - 1) {
+          currentLessonIndex += 1;
+        } else if (direction === "main" && lesson.mainScreenId) {
+          loadScreen(lesson.mainScreenId);
+          updateLessonIndicator();
+          
+          if (liveSyncClient && liveSyncClient.isConnected()) {
+            liveSyncClient.sendScreenChange(lesson.mainScreenId);
+          }
+          return;
+        } else {
+          return;
+        }
+        
+        lesson.currentIndex = currentLessonIndex;
+        saveLesson(lesson.id, lesson);
+        
+        var screenId = lesson.screenSequence[currentLessonIndex];
+        if (screenId) {
+          loadScreen(screenId);
+          updateLessonIndicator();
+          
+          if (liveSyncClient && liveSyncClient.isConnected()) {
+            liveSyncClient.sendScreenChange(screenId);
+          }
+        }
+        return;
+      }
+    }
+  }
+
+  function updateLessonIndicator() {
+    var indicator = document.getElementById("lessonIndicator");
+    if (!indicator) {
+      return;
+    }
+    
+    if (!currentLessonId) {
+      indicator.style.display = "none";
+      return;
+    }
+    
+    var lessons = getAllLessons();
+    for (var i = 0; i < lessons.length; i += 1) {
+      if (lessons[i].id === currentLessonId) {
+        var lesson = lessons[i];
+        indicator.style.display = "flex";
+        
+        var progressText = document.getElementById("lessonProgressText");
+        if (progressText) {
+          progressText.textContent = lesson.name + " (" + (currentLessonIndex + 1) + "/" + lesson.screenSequence.length + ")";
+        }
+        
+        var progressBar = document.getElementById("lessonProgressBar");
+        if (progressBar && lesson.screenSequence.length > 0) {
+          var progress = ((currentLessonIndex + 1) / lesson.screenSequence.length) * 100;
+          progressBar.style.width = progress + "%";
+        }
+        return;
+      }
     }
   }
 
@@ -5300,6 +5522,768 @@
     renderScreensList();
   }
 
+  function initLibraryDialog() {
+    var libraryDialog = document.getElementById("libraryDialog");
+    var screenEditorDialog = document.getElementById("screenEditorDialog");
+    var librarySearchInput = document.getElementById("librarySearchInput");
+    var createNewScreenBtn = document.getElementById("createNewScreenBtn");
+    var libraryGrid = document.getElementById("libraryGrid");
+    var screenNameInput = document.getElementById("screenNameInput");
+    var screenDescInput = document.getElementById("screenDescInput");
+    var saveScreenBtn = document.getElementById("saveScreenBtn");
+    
+    var currentEditingScreenId = null;
+    var searchQuery = "";
+
+    if (librarySearchInput) {
+      librarySearchInput.addEventListener("input", function() {
+        searchQuery = librarySearchInput.value.trim().toLowerCase();
+        renderLibraryGrid();
+      });
+    }
+
+    if (createNewScreenBtn) {
+      createNewScreenBtn.addEventListener("click", function() {
+        currentEditingScreenId = null;
+        if (screenNameInput) {
+          screenNameInput.value = "";
+        }
+        if (screenDescInput) {
+          screenDescInput.value = "";
+        }
+        if (screenEditorDialog && typeof screenEditorDialog.showModal === "function") {
+          screenEditorDialog.querySelector("h2").textContent = "Skapa ny screen";
+          screenEditorDialog.showModal();
+        }
+      });
+    }
+
+    if (saveScreenBtn) {
+      saveScreenBtn.addEventListener("click", function() {
+        var name = screenNameInput ? screenNameInput.value.trim() : "";
+        var description = screenDescInput ? screenDescInput.value.trim() : "";
+        
+        if (!name) {
+          alert("Ange ett namn för screenen");
+          return;
+        }
+
+        if (currentEditingScreenId) {
+          var screens = getAllScreens();
+          for (var i = 0; i < screens.length; i += 1) {
+            if (screens[i].id === currentEditingScreenId) {
+              screens[i].name = name;
+              screens[i].description = description;
+              screens[i].updatedAt = new Date().toISOString();
+              try {
+                window.localStorage.setItem(SCREENS_KEY, JSON.stringify(screens));
+              } catch (error) {
+                console.error("Kunde inte uppdatera screen", error);
+              }
+              break;
+            }
+          }
+        } else {
+          createScreen(name, description);
+        }
+        
+        if (screenEditorDialog && typeof screenEditorDialog.close === "function") {
+          screenEditorDialog.close();
+        }
+        renderLibraryGrid();
+      });
+    }
+
+    window.renderLibraryGrid = function() {
+      if (!libraryGrid) {
+        return;
+      }
+      
+      clearChildren(libraryGrid);
+      var screens = getAllScreens();
+      
+      var filteredScreens = screens;
+      if (searchQuery) {
+        filteredScreens = [];
+        for (var i = 0; i < screens.length; i += 1) {
+          var screen = screens[i];
+          var nameMatch = screen.name.toLowerCase().indexOf(searchQuery) !== -1;
+          var descMatch = screen.description && screen.description.toLowerCase().indexOf(searchQuery) !== -1;
+          if (nameMatch || descMatch) {
+            filteredScreens.push(screen);
+          }
+        }
+      }
+
+      if (filteredScreens.length === 0) {
+        var emptyMsg = document.createElement("p");
+        emptyMsg.className = "library-empty";
+        emptyMsg.textContent = searchQuery ? "Inga screens matchade sökningen" : "Inga screens skapade ännu";
+        libraryGrid.appendChild(emptyMsg);
+        return;
+      }
+
+      for (var i = 0; i < filteredScreens.length; i += 1) {
+        (function(screen) {
+          var card = document.createElement("div");
+          card.className = "library-card";
+          if (screen.id === currentScreenId) {
+            card.setAttribute("data-active", "true");
+          }
+
+          var preview = document.createElement("div");
+          preview.className = "library-card-preview";
+          if (screen.state && screen.state.background) {
+            preview.style.backgroundImage = 'url("' + screen.state.background + '")';
+          }
+          
+          var widgetCount = document.createElement("div");
+          widgetCount.className = "library-widget-count";
+          var count = screen.state && screen.state.widgets ? screen.state.widgets.length : 0;
+          widgetCount.textContent = count + " widgets";
+          preview.appendChild(widgetCount);
+
+          var info = document.createElement("div");
+          info.className = "library-card-info";
+
+          var name = document.createElement("h4");
+          name.textContent = screen.name;
+
+          var desc = document.createElement("p");
+          desc.className = "library-card-desc";
+          desc.textContent = screen.description || "Ingen beskrivning";
+
+          info.appendChild(name);
+          info.appendChild(desc);
+
+          var actions = document.createElement("div");
+          actions.className = "library-card-actions";
+
+          var loadBtn = document.createElement("button");
+          loadBtn.type = "button";
+          loadBtn.className = "library-btn-primary";
+          loadBtn.textContent = "Ladda";
+          loadBtn.addEventListener("click", function() {
+            loadScreen(screen.id);
+            if (libraryDialog && typeof libraryDialog.close === "function") {
+              libraryDialog.close();
+            }
+          });
+
+          var editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "library-btn-secondary";
+          editBtn.textContent = "Redigera";
+          editBtn.addEventListener("click", function() {
+            currentEditingScreenId = screen.id;
+            if (screenNameInput) {
+              screenNameInput.value = screen.name;
+            }
+            if (screenDescInput) {
+              screenDescInput.value = screen.description || "";
+            }
+            if (screenEditorDialog && typeof screenEditorDialog.showModal === "function") {
+              screenEditorDialog.querySelector("h2").textContent = "Redigera Screen";
+              screenEditorDialog.showModal();
+            }
+          });
+
+          var duplicateBtn = document.createElement("button");
+          duplicateBtn.type = "button";
+          duplicateBtn.className = "library-btn-secondary";
+          duplicateBtn.textContent = "Duplicera";
+          duplicateBtn.addEventListener("click", function() {
+            var newScreen = {
+              id: "screen-" + Date.now(),
+              name: screen.name + " (kopia)",
+              description: screen.description,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              state: JSON.parse(JSON.stringify(screen.state))
+            };
+            var screens = getAllScreens();
+            screens.push(newScreen);
+            try {
+              window.localStorage.setItem(SCREENS_KEY, JSON.stringify(screens));
+              renderLibraryGrid();
+            } catch (error) {
+              console.error("Kunde inte duplicera screen", error);
+            }
+          });
+
+          var deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "library-btn-danger";
+          deleteBtn.textContent = "Ta bort";
+          deleteBtn.addEventListener("click", function() {
+            if (confirm("Är du säker på att du vill ta bort '" + screen.name + "'?")) {
+              deleteScreen(screen.id);
+              renderLibraryGrid();
+            }
+          });
+
+          actions.appendChild(loadBtn);
+          actions.appendChild(editBtn);
+          actions.appendChild(duplicateBtn);
+          actions.appendChild(deleteBtn);
+
+          card.appendChild(preview);
+          card.appendChild(info);
+          card.appendChild(actions);
+          libraryGrid.appendChild(card);
+        })(filteredScreens[i]);
+      }
+    };
+  }
+
+  function initLessonNavigation() {
+    var quickNavOverlay = document.getElementById("quickNavOverlay");
+    var quickNavGrid = document.getElementById("quickNavGrid");
+    
+    document.addEventListener("keydown", function(e) {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+        return;
+      }
+      
+      if (!currentLessonId) {
+        return;
+      }
+      
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        navigateLesson("prev");
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        navigateLesson("next");
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        navigateLesson("main");
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        showQuickNav();
+      } else if (e.key === "Escape" && quickNavOverlay && quickNavOverlay.classList.contains("active")) {
+        e.preventDefault();
+        hideQuickNav();
+      }
+    });
+    
+    if (quickNavOverlay) {
+      quickNavOverlay.addEventListener("click", function(e) {
+        if (e.target === quickNavOverlay) {
+          hideQuickNav();
+        }
+      });
+    }
+    
+    function showQuickNav() {
+      if (!currentLessonId || !quickNavOverlay || !quickNavGrid) {
+        return;
+      }
+      
+      var lessons = getAllLessons();
+      for (var i = 0; i < lessons.length; i += 1) {
+        if (lessons[i].id === currentLessonId) {
+          var lesson = lessons[i];
+          
+          clearChildren(quickNavGrid);
+          
+          if (lesson.mainScreenId) {
+            var screens = getAllScreens();
+            for (var j = 0; j < screens.length; j += 1) {
+              if (screens[j].id === lesson.mainScreenId) {
+                var mainCard = createQuickNavCard(screens[j], -1, lesson.mainScreenId === currentScreenId);
+                mainCard.addEventListener("click", function() {
+                  navigateLesson("main");
+                  hideQuickNav();
+                });
+                quickNavGrid.appendChild(mainCard);
+                break;
+              }
+            }
+          }
+          
+          for (var k = 0; k < lesson.screenSequence.length; k += 1) {
+            (function(index, screenId) {
+              var screens = getAllScreens();
+              for (var m = 0; m < screens.length; m += 1) {
+                if (screens[m].id === screenId) {
+                  var card = createQuickNavCard(screens[m], index + 1, index === currentLessonIndex);
+                  card.addEventListener("click", function() {
+                    currentLessonIndex = index;
+                    lesson.currentIndex = index;
+                    saveLesson(lesson.id, lesson);
+                    loadScreen(screenId);
+                    updateLessonIndicator();
+                    hideQuickNav();
+                    
+                    if (liveSyncClient && liveSyncClient.isConnected()) {
+                      liveSyncClient.sendScreenChange(screenId);
+                    }
+                  });
+                  quickNavGrid.appendChild(card);
+                  break;
+                }
+              }
+            })(k, lesson.screenSequence[k]);
+          }
+          
+          quickNavOverlay.classList.add("active");
+          break;
+        }
+      }
+    }
+    
+    function hideQuickNav() {
+      if (quickNavOverlay) {
+        quickNavOverlay.classList.remove("active");
+      }
+    }
+    
+    function createQuickNavCard(screen, index, isActive) {
+      var card = document.createElement("div");
+      card.className = "quick-nav-card";
+      if (isActive) {
+        card.classList.add("active");
+      }
+      
+      if (index >= 0) {
+        var number = document.createElement("div");
+        number.className = "quick-nav-card-number";
+        number.textContent = index;
+        card.appendChild(number);
+      }
+      
+      var title = document.createElement("h4");
+      title.textContent = index === -1 ? "📌 " + screen.name : screen.name;
+      
+      var desc = document.createElement("p");
+      desc.textContent = screen.description || (screen.state && screen.state.widgets ? screen.state.widgets.length + " widgets" : "Tom screen");
+      
+      card.appendChild(title);
+      card.appendChild(desc);
+      
+      return card;
+    }
+  }
+
+  function initLessonDialog() {
+    var lessonDialog = document.getElementById("lessonDialog");
+    var lessonBuilderDialog = document.getElementById("lessonBuilderDialog");
+    var createNewLessonBtn = document.getElementById("createNewLessonBtn");
+    var lessonList = document.getElementById("lessonList");
+    
+    var currentEditingLessonId = null;
+    
+    if (createNewLessonBtn) {
+      createNewLessonBtn.addEventListener("click", function() {
+        currentEditingLessonId = null;
+        openLessonBuilder(null);
+      });
+    }
+    
+    window.renderLessonList = function() {
+      if (!lessonList) {
+        return;
+      }
+      
+      clearChildren(lessonList);
+      var lessons = getAllLessons();
+      
+      if (lessons.length === 0) {
+        var emptyMsg = document.createElement("p");
+        emptyMsg.className = "lesson-empty";
+        emptyMsg.textContent = "Inga lektioner skapade ännu";
+        lessonList.appendChild(emptyMsg);
+        return;
+      }
+      
+      for (var i = 0; i < lessons.length; i += 1) {
+        (function(lesson) {
+          var card = document.createElement("div");
+          card.className = "lesson-card";
+          if (lesson.id === currentLessonId) {
+            card.setAttribute("data-active", "true");
+          }
+          
+          var header = document.createElement("div");
+          header.className = "lesson-card-header";
+          
+          var title = document.createElement("h4");
+          title.textContent = lesson.name;
+          header.appendChild(title);
+          
+          var meta = document.createElement("div");
+          meta.className = "lesson-card-meta";
+          
+          var screensCount = document.createElement("div");
+          screensCount.className = "lesson-meta-item";
+          screensCount.textContent = "📊 " + lesson.screenSequence.length + " screens";
+          
+          var mainScreenInfo = document.createElement("div");
+          mainScreenInfo.className = "lesson-meta-item";
+          mainScreenInfo.textContent = lesson.mainScreenId ? "📌 Har huvudscreen" : "Ingen huvudscreen";
+          
+          meta.appendChild(screensCount);
+          meta.appendChild(mainScreenInfo);
+          
+          var actions = document.createElement("div");
+          actions.className = "lesson-card-actions";
+          
+          var startBtn = document.createElement("button");
+          startBtn.className = "lesson-btn lesson-btn-start";
+          startBtn.textContent = "Starta lektion";
+          startBtn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            loadLesson(lesson.id);
+            if (lessonDialog && typeof lessonDialog.close === "function") {
+              lessonDialog.close();
+            }
+          });
+          
+          var editBtn = document.createElement("button");
+          editBtn.className = "lesson-btn lesson-btn-edit";
+          editBtn.textContent = "Redigera";
+          editBtn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            openLessonBuilder(lesson.id);
+          });
+          
+          var deleteBtn = document.createElement("button");
+          deleteBtn.className = "lesson-btn lesson-btn-delete";
+          deleteBtn.textContent = "Ta bort";
+          deleteBtn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            if (confirm("Är du säker på att du vill ta bort lektionen '" + lesson.name + "'?")) {
+              deleteLesson(lesson.id);
+              renderLessonList();
+            }
+          });
+          
+          actions.appendChild(startBtn);
+          actions.appendChild(editBtn);
+          actions.appendChild(deleteBtn);
+          
+          card.appendChild(header);
+          card.appendChild(meta);
+          card.appendChild(actions);
+          lessonList.appendChild(card);
+        })(lessons[i]);
+      }
+    };
+    
+    function openLessonBuilder(lessonId) {
+      currentEditingLessonId = lessonId;
+      
+      if (lessonDialog && typeof lessonDialog.close === "function") {
+        lessonDialog.close();
+      }
+      
+      if (lessonBuilderDialog && typeof lessonBuilderDialog.showModal === "function") {
+        lessonBuilderDialog.showModal();
+        initLessonBuilder(lessonId);
+      }
+    }
+  }
+  
+  function initLessonBuilder(lessonId) {
+    var lessonNameInput = document.getElementById("lessonNameInput");
+    var mainScreenSelect = document.getElementById("mainScreenSelect");
+    var lessonScreensList = document.getElementById("lessonScreensList");
+    var availableScreensList = document.getElementById("availableScreensList");
+    var lessonScreenSearch = document.getElementById("lessonScreenSearch");
+    var saveLessonBtn = document.getElementById("saveLessonBtn");
+    var lessonBuilderTitle = document.getElementById("lessonBuilderTitle");
+    
+    var selectedScreens = [];
+    var selectedMainScreenId = null;
+    var searchQuery = "";
+    
+    if (lessonId) {
+      var lessons = getAllLessons();
+      for (var i = 0; i < lessons.length; i += 1) {
+        if (lessons[i].id === lessonId) {
+          var lesson = lessons[i];
+          if (lessonNameInput) {
+            lessonNameInput.value = lesson.name;
+          }
+          selectedScreens = lesson.screenSequence.slice();
+          selectedMainScreenId = lesson.mainScreenId;
+          if (lessonBuilderTitle) {
+            lessonBuilderTitle.textContent = "Redigera lektion";
+          }
+          break;
+        }
+      }
+    } else {
+      if (lessonNameInput) {
+        lessonNameInput.value = "";
+      }
+      selectedScreens = [];
+      selectedMainScreenId = null;
+      if (lessonBuilderTitle) {
+        lessonBuilderTitle.textContent = "Skapa ny lektion";
+      }
+    }
+    
+    function updateMainScreenSelect() {
+      if (!mainScreenSelect) {
+        return;
+      }
+      
+      clearChildren(mainScreenSelect);
+      
+      var noneOption = document.createElement("option");
+      noneOption.value = "";
+      noneOption.textContent = "Ingen huvudscreen";
+      mainScreenSelect.appendChild(noneOption);
+      
+      var screens = getAllScreens();
+      for (var i = 0; i < screens.length; i += 1) {
+        var option = document.createElement("option");
+        option.value = screens[i].id;
+        option.textContent = screens[i].name;
+        mainScreenSelect.appendChild(option);
+      }
+      
+      if (selectedMainScreenId) {
+        mainScreenSelect.value = selectedMainScreenId;
+      }
+    }
+    
+    function renderLessonScreensList() {
+      if (!lessonScreensList) {
+        return;
+      }
+      
+      clearChildren(lessonScreensList);
+      
+      if (selectedScreens.length === 0) {
+        var emptyMsg = document.createElement("p");
+        emptyMsg.className = "lesson-empty";
+        emptyMsg.textContent = "Lägg till screens från listan till höger";
+        emptyMsg.style.padding = "20px";
+        emptyMsg.style.margin = "0";
+        lessonScreensList.appendChild(emptyMsg);
+        return;
+      }
+      
+      var screens = getAllScreens();
+      for (var i = 0; i < selectedScreens.length; i += 1) {
+        (function(index, screenId) {
+          for (var j = 0; j < screens.length; j += 1) {
+            if (screens[j].id === screenId) {
+              var screen = screens[j];
+              
+              var item = document.createElement("div");
+              item.className = "lesson-screen-item";
+              
+              var number = document.createElement("div");
+              number.className = "lesson-screen-number";
+              number.textContent = index + 1;
+              
+              var info = document.createElement("div");
+              info.className = "lesson-screen-info";
+              
+              var title = document.createElement("h5");
+              title.textContent = screen.name;
+              
+              var desc = document.createElement("p");
+              desc.textContent = screen.description || (screen.state && screen.state.widgets ? screen.state.widgets.length + " widgets" : "Tom screen");
+              
+              info.appendChild(title);
+              info.appendChild(desc);
+              
+              var controls = document.createElement("div");
+              controls.className = "lesson-screen-controls";
+              
+              if (index > 0) {
+                var upBtn = document.createElement("button");
+                upBtn.textContent = "↑";
+                upBtn.addEventListener("click", function() {
+                  var temp = selectedScreens[index];
+                  selectedScreens[index] = selectedScreens[index - 1];
+                  selectedScreens[index - 1] = temp;
+                  renderLessonScreensList();
+                  renderAvailableScreens();
+                });
+                controls.appendChild(upBtn);
+              }
+              
+              if (index < selectedScreens.length - 1) {
+                var downBtn = document.createElement("button");
+                downBtn.textContent = "↓";
+                downBtn.addEventListener("click", function() {
+                  var temp = selectedScreens[index];
+                  selectedScreens[index] = selectedScreens[index + 1];
+                  selectedScreens[index + 1] = temp;
+                  renderLessonScreensList();
+                  renderAvailableScreens();
+                });
+                controls.appendChild(downBtn);
+              }
+              
+              var removeBtn = document.createElement("button");
+              removeBtn.textContent = "✕";
+              removeBtn.addEventListener("click", function() {
+                selectedScreens.splice(index, 1);
+                renderLessonScreensList();
+                renderAvailableScreens();
+              });
+              controls.appendChild(removeBtn);
+              
+              item.appendChild(number);
+              item.appendChild(info);
+              item.appendChild(controls);
+              lessonScreensList.appendChild(item);
+              break;
+            }
+          }
+        })(i, selectedScreens[i]);
+      }
+    }
+    
+    function renderAvailableScreens() {
+      if (!availableScreensList) {
+        return;
+      }
+      
+      clearChildren(availableScreensList);
+      var screens = getAllScreens();
+      
+      var filteredScreens = screens;
+      if (searchQuery) {
+        filteredScreens = [];
+        for (var i = 0; i < screens.length; i += 1) {
+          var screen = screens[i];
+          var nameMatch = screen.name.toLowerCase().indexOf(searchQuery.toLowerCase()) !== -1;
+          var descMatch = screen.description && screen.description.toLowerCase().indexOf(searchQuery.toLowerCase()) !== -1;
+          if (nameMatch || descMatch) {
+            filteredScreens.push(screen);
+          }
+        }
+      }
+      
+      if (filteredScreens.length === 0) {
+        var emptyMsg = document.createElement("p");
+        emptyMsg.className = "lesson-empty";
+        emptyMsg.textContent = "Inga screens hittades";
+        availableScreensList.appendChild(emptyMsg);
+        return;
+      }
+      
+      for (var i = 0; i < filteredScreens.length; i += 1) {
+        (function(screen) {
+          var item = document.createElement("div");
+          item.className = "available-screen-item";
+          
+          var isAdded = selectedScreens.indexOf(screen.id) !== -1;
+          if (isAdded) {
+            item.classList.add("added");
+          }
+          
+          var title = document.createElement("h5");
+          title.textContent = screen.name + (isAdded ? " ✓" : "");
+          
+          var desc = document.createElement("p");
+          desc.textContent = screen.description || (screen.state && screen.state.widgets ? screen.state.widgets.length + " widgets" : "Tom screen");
+          
+          item.appendChild(title);
+          item.appendChild(desc);
+          
+          if (!isAdded) {
+            item.addEventListener("click", function() {
+              selectedScreens.push(screen.id);
+              renderLessonScreensList();
+              renderAvailableScreens();
+            });
+          }
+          
+          availableScreensList.appendChild(item);
+        })(filteredScreens[i]);
+      }
+    }
+    
+    if (lessonScreenSearch) {
+      lessonScreenSearch.addEventListener("input", function() {
+        searchQuery = lessonScreenSearch.value.trim();
+        renderAvailableScreens();
+      });
+    }
+    
+    if (mainScreenSelect) {
+      mainScreenSelect.addEventListener("change", function() {
+        selectedMainScreenId = mainScreenSelect.value || null;
+      });
+    }
+    
+    if (saveLessonBtn) {
+      saveLessonBtn.addEventListener("click", function() {
+        var name = lessonNameInput ? lessonNameInput.value.trim() : "";
+        
+        if (!name) {
+          alert("Ange ett namn för lektionen");
+          return;
+        }
+        
+        if (selectedScreens.length === 0) {
+          alert("Lägg till minst en screen i lektionen");
+          return;
+        }
+        
+        if (lessonId) {
+          var lessons = getAllLessons();
+          for (var i = 0; i < lessons.length; i += 1) {
+            if (lessons[i].id === lessonId) {
+              lessons[i].name = name;
+              lessons[i].mainScreenId = selectedMainScreenId;
+              lessons[i].screenSequence = selectedScreens;
+              lessons[i].updatedAt = new Date().toISOString();
+              try {
+                window.localStorage.setItem(LESSONS_KEY, JSON.stringify(lessons));
+              } catch (error) {
+                console.error("Kunde inte uppdatera lektion", error);
+              }
+              break;
+            }
+          }
+        } else {
+          var newLesson = {
+            id: "lesson-" + Date.now(),
+            name: name,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            mainScreenId: selectedMainScreenId,
+            screenSequence: selectedScreens,
+            currentIndex: 0
+          };
+          var lessons = getAllLessons();
+          lessons.push(newLesson);
+          try {
+            window.localStorage.setItem(LESSONS_KEY, JSON.stringify(lessons));
+          } catch (error) {
+            console.error("Kunde inte skapa lektion", error);
+          }
+        }
+        
+        var lessonBuilderDialog = document.getElementById("lessonBuilderDialog");
+        if (lessonBuilderDialog && typeof lessonBuilderDialog.close === "function") {
+          lessonBuilderDialog.close();
+        }
+        
+        renderLessonList();
+        
+        var lessonDialog = document.getElementById("lessonDialog");
+        if (lessonDialog && typeof lessonDialog.showModal === "function") {
+          lessonDialog.showModal();
+        }
+      });
+    }
+    
+    updateMainScreenSelect();
+    renderLessonScreensList();
+    renderAvailableScreens();
+  }
+
   function toggleFullscreen() {
     var doc = document.documentElement;
     if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) {
@@ -5583,10 +6567,19 @@
         return;
       }
       if (action === "library") {
-        // Open symbol library
-        var symbolOverlay = document.getElementById("symbolLibraryOverlay");
-        if (symbolOverlay) {
-          symbolOverlay.setAttribute("aria-hidden", "false");
+        var libraryDialog = document.getElementById("libraryDialog");
+        if (libraryDialog && typeof libraryDialog.showModal === "function") {
+          libraryDialog.showModal();
+          renderLibraryGrid();
+        }
+        closeMenu();
+        return;
+      }
+      if (action === "lessons") {
+        var lessonDialog = document.getElementById("lessonDialog");
+        if (lessonDialog && typeof lessonDialog.showModal === "function") {
+          lessonDialog.showModal();
+          renderLessonList();
         }
         closeMenu();
         return;
@@ -6808,6 +7801,9 @@
     initToolbar();
     initStatusBar();
     initAdminDialog();
+    initLibraryDialog();
+    initLessonDialog();
+    initLessonNavigation();
     initRoomDialog();
     initHeaderActions();
     initUIToggleFab();

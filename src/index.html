@@ -71,7 +71,11 @@
             </button>
             <button class="drawer-button" data-action="library">
               <span class="icon">&#x1F4DA;</span>
-              <span class="label">Bibliotek</span>
+              <span class="label">Screen Library</span>
+            </button>
+            <button class="drawer-button" data-action="lessons">
+              <span class="icon">&#x1F4D6;</span>
+              <span class="label">Lektioner</span>
             </button>
             <button class="drawer-button" data-action="open-symbol-library">
               <span class="icon">&#x1F4A1;</span>
@@ -113,7 +117,24 @@
         <button class="ui-toggle-fab" id="uiToggleFab" title="Visa/dölj gränssnitt">
           <span class="icon">&#x2195;&#xFE0F;</span>
         </button>
+        <div id="lessonIndicator">
+          <span id="lessonProgressText">Lektion (1/5)</span>
+          <div class="lesson-progress-bar-container">
+            <div id="lessonProgressBar" style="width: 20%;"></div>
+          </div>
+          <span class="lesson-nav-hint">← → för navigation</span>
+        </div>
       </main>
+
+      <div id="quickNavOverlay">
+        <div class="quick-nav-panel">
+          <div class="quick-nav-header">
+            <h2>Snabbnavigering</h2>
+            <p>Välj en screen att hoppa till</p>
+          </div>
+          <div class="quick-nav-grid" id="quickNavGrid"></div>
+        </div>
+      </div>
 
       <nav class="smart-dock" aria-label="Widgetverktyg">
         <div class="dock-favorites" id="dockFavorites">
@@ -236,6 +257,102 @@
           <div class="admin-section">
             <h3>Mina screens</h3>
             <div class="screens-list" id="screensList"></div>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="libraryDialog">
+      <form method="dialog">
+        <header>
+          <h2>Screen Library</h2>
+          <button type="submit" class="icon-button">&#x2716;&#xFE0F;</button>
+        </header>
+        <div class="library-content">
+          <div class="library-toolbar">
+            <input type="search" id="librarySearchInput" placeholder="Sök screens..." class="library-search" />
+            <button type="button" id="createNewScreenBtn" class="library-primary-btn">+ Skapa ny screen</button>
+          </div>
+          <div class="library-grid" id="libraryGrid"></div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="screenEditorDialog">
+      <form method="dialog">
+        <header>
+          <h2>Redigera Screen</h2>
+          <button type="submit" class="icon-button">&#x2716;&#xFE0F;</button>
+        </header>
+        <div class="editor-content">
+          <div class="form-group">
+            <label for="screenNameInput">Namn</label>
+            <input type="text" id="screenNameInput" placeholder="T.ex. Matte Intro" maxlength="60" />
+          </div>
+          <div class="form-group">
+            <label for="screenDescInput">Beskrivning</label>
+            <textarea id="screenDescInput" placeholder="Vad innehåller denna screen?" rows="3" maxlength="200"></textarea>
+          </div>
+          <div class="editor-actions">
+            <button type="button" id="saveScreenBtn" class="library-primary-btn">Spara</button>
+            <button type="submit" class="library-secondary-btn">Avbryt</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="lessonDialog">
+      <form method="dialog">
+        <header>
+          <h2>Lektioner</h2>
+          <button type="submit" class="icon-button">&#x2716;&#xFE0F;</button>
+        </header>
+        <div class="lesson-dialog-content">
+          <div class="lesson-toolbar">
+            <button type="button" id="createNewLessonBtn" class="library-primary-btn">+ Skapa ny lektion</button>
+          </div>
+          <div class="lesson-list" id="lessonList"></div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="lessonBuilderDialog">
+      <form method="dialog">
+        <header>
+          <h2 id="lessonBuilderTitle">Bygg lektion</h2>
+          <button type="submit" class="icon-button">&#x2716;&#xFE0F;</button>
+        </header>
+        <div class="lesson-builder-content">
+          <div class="lesson-builder-left">
+            <div class="form-group">
+              <label for="lessonNameInput">Lektionsnamn</label>
+              <input type="text" id="lessonNameInput" placeholder="T.ex. Matte 5A - Geometri" maxlength="80" />
+            </div>
+            
+            <div class="lesson-section">
+              <h3>Huvudscreen (valfri)</h3>
+              <p class="hint">Välj en screen som översikt - tryck ↑ för att visa den</p>
+              <select id="mainScreenSelect" class="lesson-select">
+                <option value="">Ingen huvudscreen</option>
+              </select>
+            </div>
+            
+            <div class="lesson-section">
+              <h3>Screens i lektionen</h3>
+              <p class="hint">Ordning från topp till botten - navigera med ← →</p>
+              <div id="lessonScreensList" class="lesson-screens-list"></div>
+            </div>
+            
+            <div class="lesson-actions">
+              <button type="button" id="saveLessonBtn" class="library-primary-btn">Spara lektion</button>
+              <button type="submit" class="library-secondary-btn">Avbryt</button>
+            </div>
+          </div>
+          
+          <div class="lesson-builder-right">
+            <h3>Välj screens att lägga till</h3>
+            <input type="search" id="lessonScreenSearch" placeholder="Sök screens..." class="library-search" />
+            <div id="availableScreensList" class="available-screens-list"></div>
           </div>
         </div>
       </form>
