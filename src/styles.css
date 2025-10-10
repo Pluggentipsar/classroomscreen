@@ -1581,14 +1581,18 @@ body {
 
 
 @media (max-width: 1024px) {
-  .toolbar {
-    grid-auto-flow: row;
-    grid-template-columns: repeat(4, minmax(100px, 1fr));
-    padding: 24px;
+  .smart-dock {
+    padding: 6px 12px;
   }
 
-  .toolbar-button {
-    min-width: 0;
+  .dock-icon-button {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .launcher-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   }
 }
 
@@ -1597,8 +1601,34 @@ body {
     grid-template-rows: var(--header-height) 1fr auto auto;
   }
 
-  .toolbar {
+  .smart-dock {
+    width: 100%;
     border-radius: 0;
+    padding: 8px 16px;
+  }
+
+  .dock-favorites {
+    gap: 2px;
+  }
+
+  .dock-icon-button {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .launcher-panel {
+    width: 100%;
+    max-height: 90vh;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .launcher-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .launcher-quick-access {
+    grid-template-columns: 1fr;
   }
 }
 

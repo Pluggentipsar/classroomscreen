@@ -3,7 +3,7 @@
 
   var widgetLayer = document.getElementById("widgetLayer");
   var backgroundOverlay = document.getElementById("backgroundOverlay");
-  var toolbar = document.querySelector(".toolbar");
+  var toolbar = document.querySelector(".smart-dock");
   var statusClock = document.getElementById("statusClock");
   var statusDate = document.getElementById("statusDate");
   var footerToggleBtn = document.getElementById("footerToggleBtn");
@@ -18,6 +18,14 @@
   var backgroundFileButton = document.getElementById("backgroundFileButton");
   var backgroundMessage = document.getElementById("backgroundMessage");
   var moreGrid = document.getElementById("moreGrid");
+  var launcherOverlay = document.getElementById("launcherOverlay");
+  var launcherBackdrop = document.getElementById("launcherBackdrop");
+  var launcherSearchInput = document.getElementById("launcherSearchInput");
+  var launcherCloseBtn = document.getElementById("launcherCloseBtn");
+  var launcherGrid = document.getElementById("launcherGrid");
+  var launcherFavorites = document.getElementById("launcherFavorites");
+  var launcherRecent = document.getElementById("launcherRecent");
+  var dockMoreButton = document.getElementById("dockMoreButton");
 
   // Essential elements - viewer mode only needs widgetLayer and backgroundOverlay
   if (!widgetLayer || !backgroundOverlay) {
@@ -93,6 +101,37 @@
     "vocab-wall": "📚",
     "source-critique": "🔍"
   };
+
+  var widgetNamesSwedish = {
+    "background": "Bakgrund",
+    "poll": "Omröstning",
+    "randomizer": "Namnslumpare",
+    "sound-level": "Ljudnivå",
+    "music": "Musikspelare",
+    "image": "Bild",
+    "text": "Instruktioner",
+    "work-sym": "Arbetssätt",
+    "traffic-light": "Trafikljus",
+    "timetable": "Schema",
+    "timer": "Timer",
+    "clock": "Klocka",
+    "presentation": "Presentation",
+    "pace-bar": "Lektionsprogress",
+    "group-maker": "Gruppmakare",
+    "scoreboard": "Poängtavla",
+    "hand-raise": "Handuppräckning",
+    "youtube": "YouTube",
+    "qr-code": "QR-kod",
+    "step-instruction": "Stegvis instruktion",
+    "source-critique": "Källkritik-kort",
+    "seating-chart": "Sittplatskarta",
+    "attention-signal": "Uppmärksamhetssignal",
+    "exit-ticket": "Exitbiljett",
+    "vocab-wall": "Ordvägg"
+  };
+
+  var launcherRecentWidgets = [];
+  var launcherFavoriteWidgets = ["background", "poll", "randomizer", "music", "timer"];
 
   var MUSIC_BASE_TRACKS = [
     { id: "music-track-1", title: "Lugn studiemusik (piano)", src: "Musik/Lugn studiemusik, piano.mp3", builtIn: true },
@@ -4352,6 +4391,160 @@
     return null;
   }
 
+  function getWidgetIcon(type) {
+    if (type === "background") return "🎨";
+    if (type === "poll") return "📊";
+    if (type === "randomizer") return "🎲";
+    if (type === "sound-level") return "🔊";
+    if (type === "music") return "🎵";
+    if (type === "image") return "🖼️";
+    if (type === "text") return "📝";
+    if (type === "work-sym") return "💬";
+    if (type === "traffic-light") return "🚦";
+    if (type === "timetable") return "🗓️";
+    if (type === "timer") return "⏳";
+    if (type === "clock") return "🕓";
+    return widgetIcons[type] || "📦";
+  }
+
+  function getWidgetName(type) {
+    if (widgetNamesSwedish[type]) {
+      return widgetNamesSwedish[type];
+    }
+    if (widgetFactory[type] && widgetFactory[type].title) {
+      return widgetFactory[type].title;
+    }
+    return type;
+  }
+
+  function openLauncher() {
+    if (!launcherOverlay) return;
+    launcherOverlay.style.display = "flex";
+    if (launcherSearchInput) {
+      setTimeout(function() {
+        launcherSearchInput.focus();
+      }, 100);
+    }
+    renderLauncherGrid("");
+    renderLauncherQuickAccess();
+  }
+
+  function closeLauncher() {
+    if (!launcherOverlay) return;
+    launcherOverlay.style.display = "none";
+    if (launcherSearchInput) {
+      launcherSearchInput.value = "";
+    }
+  }
+
+  function addToRecent(type) {
+    launcherRecentWidgets = launcherRecentWidgets.filter(function(t) { return t !== type; });
+    launcherRecentWidgets.unshift(type);
+    if (launcherRecentWidgets.length > 5) {
+      launcherRecentWidgets = launcherRecentWidgets.slice(0, 5);
+    }
+  }
+
+  function launchWidget(type) {
+    if (type === "background") {
+      closeLauncher();
+      if (backgroundDialog && typeof backgroundDialog.showModal === "function") {
+        backgroundDialog.showModal();
+      }
+      return;
+    }
+    
+    if (manager) {
+      manager.createWidget(type);
+      addToRecent(type);
+    }
+    closeLauncher();
+  }
+
+  function renderLauncherQuickAccess() {
+    if (!launcherFavorites || !launcherRecent) return;
+
+    clearChildren(launcherFavorites);
+    for (var i = 0; i < launcherFavoriteWidgets.length; i++) {
+      var type = launcherFavoriteWidgets[i];
+      (function(widgetType) {
+        var chip = document.createElement("button");
+        chip.className = "launcher-chip";
+        chip.textContent = getWidgetName(widgetType);
+        chip.addEventListener("click", function() {
+          launchWidget(widgetType);
+        });
+        launcherFavorites.appendChild(chip);
+      })(type);
+    }
+
+    clearChildren(launcherRecent);
+    if (launcherRecentWidgets.length === 0) {
+      var emptyMsg = document.createElement("p");
+      emptyMsg.textContent = "— Inget ännu";
+      emptyMsg.style.fontSize = "13px";
+      emptyMsg.style.color = "rgba(0, 0, 0, 0.5)";
+      launcherRecent.appendChild(emptyMsg);
+    } else {
+      for (var j = 0; j < launcherRecentWidgets.length; j++) {
+        var recentType = launcherRecentWidgets[j];
+        (function(widgetType) {
+          var chip = document.createElement("button");
+          chip.className = "launcher-chip";
+          chip.textContent = getWidgetName(widgetType);
+          chip.addEventListener("click", function() {
+            launchWidget(widgetType);
+          });
+          launcherRecent.appendChild(chip);
+        })(recentType);
+      }
+    }
+  }
+
+  function renderLauncherGrid(query) {
+    if (!launcherGrid) return;
+
+    clearChildren(launcherGrid);
+    var allWidgets = ["background"].concat(primaryWidgets).concat(moreWidgets);
+    var lowerQuery = query.toLowerCase();
+
+    for (var i = 0; i < allWidgets.length; i++) {
+      var type = allWidgets[i];
+      var name = getWidgetName(type);
+      
+      if (query && name.toLowerCase().indexOf(lowerQuery) === -1) {
+        continue;
+      }
+
+      (function(widgetType, widgetName) {
+        var card = document.createElement("button");
+        card.className = "launcher-widget-card";
+
+        var iconDiv = document.createElement("div");
+        iconDiv.className = "launcher-widget-icon";
+        iconDiv.textContent = getWidgetIcon(widgetType);
+
+        var labelDiv = document.createElement("div");
+        labelDiv.className = "launcher-widget-label";
+        labelDiv.textContent = widgetName;
+
+        var hintDiv = document.createElement("div");
+        hintDiv.className = "launcher-widget-hint";
+        hintDiv.textContent = "Klicka för att lägga till";
+
+        card.appendChild(iconDiv);
+        card.appendChild(labelDiv);
+        card.appendChild(hintDiv);
+
+        card.addEventListener("click", function() {
+          launchWidget(widgetType);
+        });
+
+        launcherGrid.appendChild(card);
+      })(type, name);
+    }
+  }
+
   function initToolbar() {
     if (!toolbar) {
       return;
@@ -4376,6 +4569,42 @@
       }
       if (manager) {
         manager.createWidget(type);
+        addToRecent(type);
+      }
+    });
+
+    if (dockMoreButton) {
+      dockMoreButton.addEventListener("click", function() {
+        openLauncher();
+      });
+    }
+
+    if (launcherBackdrop) {
+      launcherBackdrop.addEventListener("click", function() {
+        closeLauncher();
+      });
+    }
+
+    if (launcherCloseBtn) {
+      launcherCloseBtn.addEventListener("click", function() {
+        closeLauncher();
+      });
+    }
+
+    if (launcherSearchInput) {
+      launcherSearchInput.addEventListener("input", function() {
+        renderLauncherGrid(launcherSearchInput.value);
+      });
+    }
+
+    document.addEventListener("keydown", function(e) {
+      var isModK = (e.key.toLowerCase() === "k") && (e.metaKey || e.ctrlKey);
+      if (isModK) {
+        e.preventDefault();
+        openLauncher();
+      }
+      if (e.key === "Escape" && launcherOverlay && launcherOverlay.style.display === "flex") {
+        closeLauncher();
       }
     });
   }
