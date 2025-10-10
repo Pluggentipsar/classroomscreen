@@ -5591,7 +5591,7 @@
           }
 
           // Update widget data if provided and widget has load function
-          if (widgetData.data && entry.load) {
+          if (widgetData.hasOwnProperty("data") && widgetData.data != null && entry.load) {
             entry.load(widget, widgetData.data);
           }
 
@@ -5623,6 +5623,13 @@
 
         if (newWidget) {
           console.log("Successfully created widget:", widgetData.syncId);
+          
+          // Call load() to sync initial state (e.g., timer running state)
+          var entry = manager.widgets[newWidget.getAttribute("data-id")];
+          if (entry && entry.load && widgetData.hasOwnProperty("data") && widgetData.data != null) {
+            console.log("Calling load() on newly created widget:", widgetData.syncId);
+            entry.load(newWidget, widgetData.data);
+          }
         } else {
           console.warn("Failed to create widget:", widgetData.syncId, widgetData.type);
         }
