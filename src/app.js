@@ -560,6 +560,10 @@
           mediaLibraryUI.open({
             title: "Välj bakgrundsbild",
             allowMultiple: false,
+            pexelsOptions: {
+              orientation: 'landscape',
+              size: 'large'
+            },
             onSelect: function(item) {
               var imageUrl = item.url || item.highResUrl;
               var label = item.alt || item.name || "Bakgrund från bibliotek";

@@ -28,7 +28,7 @@ class PexelsService {
     return this.apiKey;
   }
 
-  async searchPhotos(query, language = 'sv', perPage = 30) {
+  async searchPhotos(query, language = 'sv', perPage = 30, options = {}) {
     if (!query || query.trim().length < 2) {
       return [];
     }
@@ -39,14 +39,23 @@ class PexelsService {
       return [];
     }
 
-    const cacheKey = `search_${language}_${query}_${perPage}`;
+    const orientation = options.orientation || '';
+    const size = options.size || '';
+    const cacheKey = `search_${language}_${query}_${perPage}_${orientation}_${size}`;
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
 
     try {
       const encodedQuery = encodeURIComponent(query.trim());
-      const url = `${PEXELS_API_BASE}/search?query=${encodedQuery}&per_page=${perPage}&locale=${language}-SE`;
+      let url = `${PEXELS_API_BASE}/search?query=${encodedQuery}&per_page=${perPage}&locale=${language}-SE`;
+      
+      if (orientation) {
+        url += `&orientation=${orientation}`;
+      }
+      if (size) {
+        url += `&size=${size}`;
+      }
       
       const response = await fetch(url, {
         headers: {
@@ -82,20 +91,29 @@ class PexelsService {
     }
   }
 
-  async getCuratedPhotos(perPage = 30) {
+  async getCuratedPhotos(perPage = 30, options = {}) {
     await this.ensureApiKey();
     if (!this.apiKey) {
       console.warn('Pexels API key not available');
       return [];
     }
 
-    const cacheKey = `curated_${perPage}`;
+    const orientation = options.orientation || '';
+    const size = options.size || '';
+    const cacheKey = `curated_${perPage}_${orientation}_${size}`;
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
 
     try {
-      const url = `${PEXELS_API_BASE}/curated?per_page=${perPage}`;
+      let url = `${PEXELS_API_BASE}/curated?per_page=${perPage}`;
+      
+      if (orientation) {
+        url += `&orientation=${orientation}`;
+      }
+      if (size) {
+        url += `&size=${size}`;
+      }
       
       const response = await fetch(url, {
         headers: {

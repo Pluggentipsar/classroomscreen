@@ -10,14 +10,16 @@ class MediaLibraryUI {
     this.searchTimeout = null;
     this.currentQuery = '';
     this.allowMultiple = false;
+    this.pexelsOptions = {};
   }
 
   open(options = {}) {
-    const { onSelect, allowMultiple = false, title = 'Symbolbibliotek' } = options;
+    const { onSelect, allowMultiple = false, title = 'Symbolbibliotek', pexelsOptions = {} } = options;
     
     this.onSelectCallback = onSelect;
     this.allowMultiple = allowMultiple;
     this.selectedItems = [];
+    this.pexelsOptions = pexelsOptions;
     
     if (!this.dialog || !this.dialog.querySelector('.multi-select-confirm-btn')) {
       if (this.dialog) {
@@ -265,7 +267,7 @@ class MediaLibraryUI {
       
       let results = [];
       if (this.currentSource === 'pexels') {
-        results = await pexelsService.searchPhotos(query, 'sv', 30);
+        results = await pexelsService.searchPhotos(query, 'sv', 30, this.pexelsOptions);
       } else {
         results = await arasaacService.searchPictograms(query, 'en');
       }
@@ -282,7 +284,7 @@ class MediaLibraryUI {
     let results = [];
     
     if (this.currentSource === 'pexels') {
-      results = await pexelsService.getCuratedPhotos(30);
+      results = await pexelsService.getCuratedPhotos(30, this.pexelsOptions);
     } else {
       results = await arasaacService.getNewPictograms(24, 'en');
     }
