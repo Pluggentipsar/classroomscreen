@@ -1,0 +1,121 @@
+Här är ett paket med funktioner som gör din omröstnings-widget vassare, men fortfarande superenkel på projektor.
+
+1) Röstningslägen
+
+Snabbkänsla (👍 😐 👎) – 10–30 s timer, anonymt, auto-stäng.
+
+Flervalsfråga (1 svar eller flera).
+
+Skalor (1–5, 0–10, Likert “Instämmer – Instämmer ej”).
+
+Rangordning (ranked choice) – elever sorterar alternativ.
+
+Quiz-läge – markera rätt svar, visa podium/konfetti när stängd.
+
+Öppet svar → ordmoln (med moderering & svordomsfilter).
+
+Bild-/piktogram-val – alternativ med foto/ARASAAC-ikon.
+
+
+2) Deltagande & styrning
+
+QR/PIN för att rösta via mobil, ”Dela länk”.
+
+En röst per enhet (device-fingerprint) med valbar tillåt flera röster.
+
+Lås omröstning / Frys resultat / Tillåt ändra röst (på/av).
+
+Nedräkning (5/10/30/60 s) + auto-stäng.
+
+Elevstyrning (valfritt): låt elev starta/stänga enbart den här omröstningen.
+
+
+3) Visualiseringar
+
+Staplar (default), tårta, horisontell stapel för långa etiketter.
+
+Visa procent/antal (toggle), dölj resultat tills stängd.
+
+Färgkodning & högkontrast-läge för projektor.
+
+Gruppvy: staplar per grupp/lag (för tävling eller stationsarbete).
+
+
+4) Mallar (1-klick)
+
+“Hur känns tempot?” (👍 😐 👎, 10 s, anonym, auto-stäng).
+
+Exit ticket (1–5 + valfri kommentar).
+
+Förförståelse (MCQ) och Efteråt (samma fråga → jämförelse).
+
+Snabb gruppering: elever väljer tema → skapar grupper efter resultat.
+
+
+5) Tillgänglighet
+
+Stora knappar, tabb-navigering, skärmläsar-etiketter.
+
+Läs upp fråga (TTS), ikon + text (inte bara färg).
+
+Symbol-läge: visa bara piktogram (stöd för yngre/nyanlända).
+
+
+6) Data & uppföljning
+
+Spara mall / Duplicera / Kör igen.
+
+Exportera CSV/PNG, kopiera resultat till urklipp.
+
+Historik per klass/lektion, före–efter-jämförelse.
+
+Följdfråga: skapa ny omröstning automatiskt baserat på utfallet.
+
+
+7) Anti-fusk & trygghet
+
+Rate-limit per enhet, randomisera alternativens ordning.
+
+Moderering för öppna svar + profanitetsfilter.
+
+Integritetsläge: helt anonymt, inga loggar per elev (GDPR-vänligt).
+
+
+8) Smarta kopplingar (till andra widgets)
+
+Timer-auto: starta 20 s omröstning med ett klick.
+
+Stegvisa instruktioner: “Har du förstått steg 2?” → snabbkänsla.
+
+Ljudnivå: sänk ljudet och visa resultat i hörn-overlay.
+
+
+9) Lärarpanel i mobilen
+
+Mini-fjärr: start/stop, visa/dölj resultat, byt vy, skicka QR.
+
+
+
+---
+
+Minimal UI-skiss (kontroller)
+
+Titel + fråga
+
+[Start] [Stäng]  |  Timer: 30 s (▼)  |  Visa resultat: Av/⚫︎
+
+Läge: Snabbkänsla / Flerval / Skala / Rang / Quiz / Öppet
+
+Inställningar (sidopanel): anonymt, 1 röst/enhet, tillåt ändra röst, visa %/antal, högkontrast, lås efter stängning
+
+
+Vill du att jag mockar:
+
+1. Rangordning + ordmoln eller
+
+
+2. Quiz-läge med podium
+i samma stil som våra andra widgets?
+
+
+
