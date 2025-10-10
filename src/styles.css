@@ -3879,6 +3879,7 @@ body {
   flex-direction: column;
   height: 100%;
   max-height: 85vh;
+  position: relative;
 }
 
 .media-library-header {
@@ -4587,28 +4588,56 @@ body {
   transform: scale(1.1);
 }
 
-/* Multi-select Styles */
+/* Multi-select Floating Action Button */
+.multi-select-fab {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 .multi-select-confirm-btn {
-  padding: 10px 20px;
+  padding: 16px 32px;
   background: var(--primary);
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 50px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
   transition: all 0.2s;
-  margin-right: 12px;
+  box-shadow: 0 8px 24px rgba(63, 81, 181, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.multi-select-confirm-btn:hover:not(:disabled) {
+.multi-select-confirm-btn:hover {
   background: #303F9F;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(63, 81, 181, 0.5);
 }
 
-.multi-select-confirm-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.multi-select-confirm-btn .selected-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-weight: 700;
 }
 
 .media-item.selected {

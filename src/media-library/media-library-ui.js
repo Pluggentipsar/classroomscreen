@@ -52,9 +52,6 @@ class MediaLibraryUI {
       <div class="media-library-container">
         <header class="media-library-header">
           <h2>${title}</h2>
-          <button type="button" class="multi-select-confirm-btn" style="display: none;">
-            Lägg till valda (<span class="selected-count">0</span>)
-          </button>
           <button type="button" class="close-btn" aria-label="Stäng">×</button>
         </header>
         
@@ -139,6 +136,12 @@ class MediaLibraryUI {
               Inga samlingar skapade
             </div>
           </div>
+        </div>
+        
+        <div class="multi-select-fab" style="display: none;">
+          <button type="button" class="multi-select-confirm-btn">
+            ✓ Lägg till <span class="selected-count">0</span> valda
+          </button>
         </div>
       </div>
     `;
@@ -372,12 +375,13 @@ class MediaLibraryUI {
   }
 
   updateMultiSelectButton() {
-    const btn = this.dialog?.querySelector('.multi-select-confirm-btn');
+    const fab = this.dialog?.querySelector('.multi-select-fab');
     const count = this.dialog?.querySelector('.selected-count');
-    if (btn && count) {
-      btn.style.display = this.allowMultiple ? 'block' : 'none';
+    
+    if (fab && count) {
+      const hasSelection = this.allowMultiple && this.selectedItems.length > 0;
+      fab.style.display = hasSelection ? 'flex' : 'none';
       count.textContent = this.selectedItems.length;
-      btn.disabled = this.selectedItems.length === 0;
     }
   }
 
