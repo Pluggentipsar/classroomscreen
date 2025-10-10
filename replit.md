@@ -25,20 +25,29 @@ Classroomscreen is an interactive classroom management tool designed to create e
     -   **Fullscreen mode**: Click ⛶ button to view image in fullscreen (ESC to close)
     -   **Delete function**: × button to remove individual images from slideshow
     -   **Backward compatibility**: Old single-image widgets auto-convert to array format
-3.  **Media Library**: Hybrid image/symbol library with dual sources:
+    -   **Fullscreen slideshow navigation**: In fullscreen mode, use ← → arrows or keyboard to browse images
+3.  **Enhanced Step-by-Step Instructions Widget**: Visual learning aid with media integration:
+    -   **Rich step format**: Each step has title, body text, and optional image (from Pexels/ARASAAC)
+    -   **View modes**: "Ett i taget" (single step) or "Visa alla" (grid view of all steps)
+    -   **Edit mode**: Teachers can modify titles, descriptions, and select images from media library
+    -   **Student view option**: "Dölj text" toggle hides body text, showing only titles and images
+    -   **Progress tracking**: Visual progress bar and step counter (X av Y) in single mode
+    -   **Media library integration**: "📚 Välj bild" button opens media library for Pexels photos or ARASAAC pictograms
+    -   **Syncs with students**: Mode changes, content edits, and visibility settings sync in real-time
+4.  **Media Library**: Hybrid image/symbol library with dual sources:
     -   **Pexels API**: Swedish-language photo search with 8,000+ curated photos for classroom use
     -   **ARASAAC API**: 40,000+ educational pictograms/symbols (English search)
     -   Dual-source tabs for switching between photos and pictograms
     -   Favorites and recently used tracking across both sources
     -   Custom collections for organizing images by subject (Matte, Svenska, etc.)
-    -   Integration in Image and Presentation widgets via "Välj från bibliotek" button
+    -   Integration in Image, Presentation, and Step-by-Step Instructions widgets via "Välj från bibliotek" button
     -   Glassmorphic dialog design with tabbed interface (Sök, Senaste, Favoriter, Samlingar)
     -   Photographer attribution for Pexels photos
-3.  **Live Rooms**: Teachers can create rooms with unique codes for students to join, enabling real-time interaction and content synchronization.
-4.  **Background Customization**: Allows custom images or URLs for screen backgrounds.
-5.  **Screen Management**: Ability to save and load different classroom screen configurations.
-6.  **Student Interaction**: Students can raise hands in viewer mode, and teachers can manage student lists and their interaction permissions.
-7.  **Responsive Design**: UI/UX is optimized for both mobile and desktop.
+5.  **Live Rooms**: Teachers can create rooms with unique codes for students to join, enabling real-time interaction and content synchronization.
+6.  **Background Customization**: Allows custom images or URLs for screen backgrounds.
+7.  **Screen Management**: Ability to save and load different classroom screen configurations.
+8.  **Student Interaction**: Students can raise hands in viewer mode, and teachers can manage student lists and their interaction permissions.
+9.  **Responsive Design**: UI/UX is optimized for both mobile and desktop.
 
 ### UI/UX and Design Decisions
 -   **Modern Aesthetics**: Utilizes "glass card" effects, improved backdrop filters, and larger border-radius for a contemporary look.

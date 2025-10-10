@@ -2747,12 +2747,18 @@
             changeImageBtn.type = "button";
             changeImageBtn.innerHTML = "📚 Välj bild";
             changeImageBtn.addEventListener("click", function() {
-              openMediaLibrary(function(item) {
-                step.image = item.url;
-                step.imageSource = item.source;
-                renderSingleView();
-                if (typeof onChange === "function") { onChange(); }
-              });
+              if (typeof mediaLibraryUI !== "undefined") {
+                mediaLibraryUI.open({
+                  title: "Välj bild eller symbol",
+                  allowMultiple: false,
+                  onSelect: function(item) {
+                    step.image = item.url || item.highResUrl;
+                    step.imageSource = item.source || "";
+                    renderSingleView();
+                    if (typeof onChange === "function") { onChange(); }
+                  }
+                });
+              }
             });
             imageSection.appendChild(changeImageBtn);
           }
@@ -2866,12 +2872,18 @@
               changeBtn.innerHTML = "📚";
               changeBtn.title = "Byt bild";
               changeBtn.addEventListener("click", function() {
-                openMediaLibrary(function(item) {
-                  step.image = item.url;
-                  step.imageSource = item.source;
-                  renderAllView();
-                  if (typeof onChange === "function") { onChange(); }
-                });
+                if (typeof mediaLibraryUI !== "undefined") {
+                  mediaLibraryUI.open({
+                    title: "Välj bild eller symbol",
+                    allowMultiple: false,
+                    onSelect: function(item) {
+                      step.image = item.url || item.highResUrl;
+                      step.imageSource = item.source || "";
+                      renderAllView();
+                      if (typeof onChange === "function") { onChange(); }
+                    }
+                  });
+                }
               });
               cardImage.appendChild(changeBtn);
             }
