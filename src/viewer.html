@@ -198,6 +198,23 @@
         window.viewerStudentId = studentId;
         window.viewerRoomCode = roomCode;
         console.log("window.isViewerMode is now:", window.isViewerMode);
+
+        // Save active room to localStorage so LiveSync can find it
+        try {
+          var roomData = {
+            code: roomCode,
+            name: "Lektion",
+            createdAt: new Date().toISOString(),
+            screenId: null,
+            lessonId: null,
+            screenIndex: 0,
+            isViewer: true
+          };
+          window.localStorage.setItem("classroomscreen-active-room-v1", JSON.stringify(roomData));
+          console.log("Saved active room to localStorage:", roomCode);
+        } catch (error) {
+          console.error("Could not save active room", error);
+        }
       })();
       console.log("=== VIEWER.HTML SCRIPT 1 END, window.isViewerMode:", window.isViewerMode, "===");
     </script>

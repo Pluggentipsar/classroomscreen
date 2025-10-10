@@ -205,21 +205,9 @@
             return;
           }
 
-          // Try to join room
-          var room = null;
-          try {
-            var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
-            if (roomData) {
-              room = JSON.parse(roomData);
-            }
-          } catch (error) {
-            console.error("Kunde inte läsa rum", error);
-          }
-
-          if (!room || room.code !== roomCode) {
-            showError("Rumskoden är felaktig eller rummet finns inte");
-            return;
-          }
+          // Note: We don't validate the room code against localStorage anymore
+          // because that only works for same-device. The WebSocket server
+          // will validate the room when the student tries to connect.
 
           // Add student to room
           var students = [];
