@@ -18,11 +18,17 @@ Classroomscreen is an interactive classroom management tool designed to create e
 
 ### Core Features
 1.  **Widget System**: Includes Timer, Clock, Poll, Randomizer, Sound Level, Music, Image, Text, Work Symbols, Traffic Light, Timetable, Presentation, Lesson Progress, Group Maker, Scoreboard, Hand Raise, YouTube, QR Code, Step-by-step instructions, and Critical Thinking Cards.
-2.  **Live Rooms**: Teachers can create rooms with unique codes for students to join, enabling real-time interaction and content synchronization.
-3.  **Background Customization**: Allows custom images or URLs for screen backgrounds.
-4.  **Screen Management**: Ability to save and load different classroom screen configurations.
-5.  **Student Interaction**: Students can raise hands in viewer mode, and teachers can manage student lists and their interaction permissions.
-6.  **Responsive Design**: UI/UX is optimized for both mobile and desktop.
+2.  **Media Library**: Integrated symbol/pictogram library with ARASAAC API for educational communication symbols. Features include:
+    -   Real-time search of 40,000+ pictograms in Swedish
+    -   Favorites and recently used tracking
+    -   Custom collections for organizing symbols by subject (Matte, Svenska, etc.)
+    -   Integration in Image and Presentation widgets via "Välj från bibliotek" button
+    -   Glassmorphic dialog design with tabbed interface (Sök, Senaste, Favoriter, Samlingar)
+3.  **Live Rooms**: Teachers can create rooms with unique codes for students to join, enabling real-time interaction and content synchronization.
+4.  **Background Customization**: Allows custom images or URLs for screen backgrounds.
+5.  **Screen Management**: Ability to save and load different classroom screen configurations.
+6.  **Student Interaction**: Students can raise hands in viewer mode, and teachers can manage student lists and their interaction permissions.
+7.  **Responsive Design**: UI/UX is optimized for both mobile and desktop.
 
 ### UI/UX and Design Decisions
 -   **Modern Aesthetics**: Utilizes "glass card" effects, improved backdrop filters, and larger border-radius for a contemporary look.
@@ -36,6 +42,11 @@ Classroomscreen is an interactive classroom management tool designed to create e
     -   **Discreet Icons**: Replaced text with subtle icons for features like "Student Control" with visual feedback (gray for off, blue for on) and custom tooltips.
 
 ### Technical Implementation Details
+-   **Media Library System**: A comprehensive symbol/pictogram management system with modular architecture:
+    -   **ARASAAC Service** (`arasaac-service.js`): REST API client for ARASAAC's 40,000+ pictograms with caching for performance. Supports search, best-search, new items, and by-ID lookups. Generates optimized image URLs with configurable resolution (300px, 500px, 2500px) and customization options (plural, color, action, skin tone, hair color).
+    -   **Media Storage** (`media-storage.js`): LocalStorage-based persistence layer managing favorites, recently used items (max 50), and user-created collections. Provides defensive parsing, deduplication, and import/export functionality.
+    -   **Media Library UI** (`media-library-ui.js`): Modal dialog with tabbed interface (Search, Recent, Favorites, Collections). Features real-time search with debouncing, grid-based item display, and integration buttons in Image and Presentation widgets. Glassmorphic design consistent with the application's visual language.
+    -   **Collections System**: Allows teachers to organize symbols into subject-based collections (e.g., "Matte", "Svenska"). Collections are stored locally with full CRUD operations and can contain items from multiple sources (future-ready for Pexels integration).
 -   **WebSocket Real-time Sync**: A WebSocket server (using the `ws` package) ensures real-time synchronization across devices.
     -   **Room-based Routing**: Host (teacher) and viewers (students) connect via a room code.
     -   **Message Types**: Standardized messages for joining, sync requests, widget control, updates, screen changes, layout resets, and hand-raises.
