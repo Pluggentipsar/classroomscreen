@@ -148,6 +148,36 @@ The application is fully functional and running on Replit. It consists of:
 - Exponential backoff vid reconnect (max 5 försök)
 - Omfattande console.log för debugging av WebSocket events och widget broadcasts
 
+#### Real-time Sync Förbättringar (2025-10-10 Eftermiddag)
+
+**Kritiska Bugfixar:**
+1. **sendWidgetsSync() undefined-bugg** - Fixad fatal bugg där position, size, minimized, data skickades som undefined, vilket kraschade WebSocket. Nu läses data korrekt från DOM och widget save() funktioner.
+
+2. **Ping/pong keep-alive** - Implementerad WebSocket heartbeat (30 sek) för att förhindra prematura connection drops.
+
+3. **Real-time widget creation** - syncAllWidgets() skapar nu NYA widgets i viewer om de inte finns, inte bara uppdaterar befintliga. Widgets dyker upp hos elever i realtid utan F5-refresh.
+
+4. **Student list UI** - Implementerat student management:
+   - addStudentToRoom() - Lägger till elever i localStorage när de ansluter
+   - removeStudentFromRoomById() - Tar bort elever när de disconnectar
+   - updateStudentHandRaise() - Uppdaterar hand raise status
+   - window.updateStudentListGlobal - Global funktion för UI-uppdatering
+
+5. **Viewer-joined & hand-raise** - WebSocket event handlers uppdaterar nu student list UI:
+   - viewer-joined: Lärare ser när elever ansluter
+   - viewer-left: Lärare ser när elever lämnar
+   - hand-raise: Lärare ser när elever räcker upp hand
+
+6. **Låssymbol fix** - viewerControlEnabled default ändrat från false → true:
+   - Nya widgets visar INTE låssymbol som default
+   - Elever kan interagera med widgets (flytta, se innehåll)
+   - Lärare kan stänga av elevstyrning per widget med 👥 knappen
+
+**Widget Sync Förbättringar:**
+- syncAllWidgets() uppdaterar nu position, size, minimized, data för befintliga widgets
+- Använder hasOwnProperty check för viewerControlEnabled med true som fallback
+- Widgets synkar nu korrekt både initial load OCH real-time updates
+
 ## Running the Project
 
 ### Development
