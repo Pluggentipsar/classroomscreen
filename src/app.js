@@ -2605,85 +2605,383 @@
     "step-instruction": {
       title: "Stegvis instruktion",
       defaults: function () {
-        return { steps: ["Steg 1: Läs uppgiften", "Steg 2: Planera", "Steg 3: Genomför"], currentStep: 0 };
+        return { 
+          steps: [
+            {
+              title: "Läs uppgiften",
+              body: "Läs igenom uppgiften noggrant. Markera nyckelord och säkerställ att du förstår målet.",
+              image: "",
+              imageSource: ""
+            },
+            {
+              title: "Planera",
+              body: "Gör en snabb plan: Vad behöver göras först, sedan, sist? Vem gör vad och när?",
+              image: "",
+              imageSource: ""
+            },
+            {
+              title: "Genomför",
+              body: "Jobba enligt planen. Stäm av halvvägs och justera vid behov. Lämna in när du är klar.",
+              image: "",
+              imageSource: ""
+            }
+          ],
+          currentStep: 0,
+          mode: "single",
+          editMode: false,
+          hideText: false
+        };
       },
       render: function (container, data, onChange) {
         var state = {
-          steps: ensureArray(data && data.steps),
-          currentStep: data && typeof data.currentStep === "number" ? data.currentStep : 0
+          steps: ensureArray(data && data.steps).map(function(s) {
+            if (typeof s === "string") {
+              return { title: s, body: "", image: "", imageSource: "" };
+            }
+            return {
+              title: ensureString(s.title, ""),
+              body: ensureString(s.body, ""),
+              image: ensureString(s.image, ""),
+              imageSource: ensureString(s.imageSource, "")
+            };
+          }),
+          currentStep: data && typeof data.currentStep === "number" ? data.currentStep : 0,
+          mode: data && data.mode === "all" ? "all" : "single",
+          editMode: data && data.editMode === true,
+          hideText: data && data.hideText === true
         };
+        
         if (!state.steps.length) {
-          state.steps = ["Steg 1"];
+          state.steps = [{ title: "Steg 1", body: "", image: "", imageSource: "" }];
         }
 
-        var stepDisplay = createElement("div", "step-display");
-        var stepNumber = createElement("div", "step-number");
-        var stepText = createElement("div", "step-text");
-        stepDisplay.appendChild(stepNumber);
-        stepDisplay.appendChild(stepText);
-
-        var controls = createElement("div", "step-controls");
-        var prevBtn = document.createElement("button");
-        prevBtn.type = "button";
-        prevBtn.textContent = "← Föregående";
-        var nextBtn = document.createElement("button");
-        nextBtn.type = "button";
-        nextBtn.textContent = "Nästa →";
-        controls.appendChild(prevBtn);
-        controls.appendChild(nextBtn);
-
-        var editArea = createElement("div", "step-edit");
-        var stepsTextarea = document.createElement("textarea");
-        stepsTextarea.rows = 8;
-        stepsTextarea.placeholder = "Ett steg per rad";
-        stepsTextarea.value = state.steps.join("\n");
-        editArea.appendChild(stepsTextarea);
-
-        function updateDisplay() {
-          stepNumber.textContent = "Steg " + (state.currentStep + 1) + " av " + state.steps.length;
-          stepText.textContent = state.steps[state.currentStep] || "";
+        var header = createElement("div", "step-instruction-header");
+        
+        var modeToggle = createElement("div", "step-mode-toggle");
+        var singleModeBtn = createElement("button", "step-mode-btn");
+        singleModeBtn.type = "button";
+        singleModeBtn.innerHTML = "📋 Ett i taget";
+        var allModeBtn = createElement("button", "step-mode-btn");
+        allModeBtn.type = "button";
+        allModeBtn.innerHTML = "🔲 Visa alla";
+        modeToggle.appendChild(singleModeBtn);
+        modeToggle.appendChild(allModeBtn);
+        
+        var controls = createElement("div", "step-header-controls");
+        var editBtn = createElement("button", "step-edit-btn");
+        editBtn.type = "button";
+        editBtn.innerHTML = "✏️ Redigera";
+        var hideTextBtn = createElement("button", "step-hidetext-btn");
+        hideTextBtn.type = "button";
+        hideTextBtn.innerHTML = "👁️ Dölj text";
+        controls.appendChild(editBtn);
+        controls.appendChild(hideTextBtn);
+        
+        header.appendChild(modeToggle);
+        header.appendChild(controls);
+        
+        var progressBar = createElement("div", "step-progress-bar");
+        var progressFill = createElement("div", "step-progress-fill");
+        var progressLabel = createElement("div", "step-progress-label");
+        progressBar.appendChild(progressFill);
+        
+        var mainContent = createElement("div", "step-main-content");
+        
+        function updateModeButtons() {
+          if (state.mode === "single") {
+            singleModeBtn.classList.add("active");
+            allModeBtn.classList.remove("active");
+          } else {
+            singleModeBtn.classList.remove("active");
+            allModeBtn.classList.add("active");
+          }
+        }
+        
+        function updateEditButton() {
+          if (state.editMode) {
+            editBtn.classList.add("active");
+            editBtn.innerHTML = "✏️ Klar";
+          } else {
+            editBtn.classList.remove("active");
+            editBtn.innerHTML = "✏️ Redigera";
+          }
+        }
+        
+        function updateHideTextButton() {
+          if (state.hideText) {
+            hideTextBtn.classList.add("active");
+            hideTextBtn.innerHTML = "👁️ Visa text";
+          } else {
+            hideTextBtn.classList.remove("active");
+            hideTextBtn.innerHTML = "👁️ Dölj text";
+          }
+        }
+        
+        function updateProgress() {
+          var pct = ((state.currentStep + 1) / state.steps.length) * 100;
+          progressFill.style.width = pct + "%";
+          progressLabel.textContent = "Steg " + (state.currentStep + 1) + " av " + state.steps.length + " • " + Math.round(pct) + "%";
+        }
+        
+        function renderSingleView() {
+          mainContent.innerHTML = "";
+          var step = state.steps[state.currentStep] || state.steps[0];
+          
+          var singleContainer = createElement("div", "step-single-view");
+          
+          var imageSection = createElement("div", "step-image-section");
+          if (step.image) {
+            var img = document.createElement("img");
+            img.src = step.image;
+            img.alt = step.title;
+            img.className = "step-image";
+            imageSection.appendChild(img);
+          } else {
+            var placeholder = createElement("div", "step-image-placeholder");
+            placeholder.textContent = "📷";
+            imageSection.appendChild(placeholder);
+          }
+          
+          if (state.editMode) {
+            var changeImageBtn = createElement("button", "step-change-image-btn");
+            changeImageBtn.type = "button";
+            changeImageBtn.innerHTML = "📚 Välj bild";
+            changeImageBtn.addEventListener("click", function() {
+              openMediaLibrary(function(item) {
+                step.image = item.url;
+                step.imageSource = item.source;
+                renderSingleView();
+                if (typeof onChange === "function") { onChange(); }
+              });
+            });
+            imageSection.appendChild(changeImageBtn);
+          }
+          
+          var textSection = createElement("div", "step-text-section");
+          
+          var titleBox = createElement("div", "step-title-box");
+          if (state.editMode) {
+            var titleInput = document.createElement("input");
+            titleInput.type = "text";
+            titleInput.value = step.title;
+            titleInput.className = "step-title-input";
+            titleInput.placeholder = "Titel...";
+            titleInput.addEventListener("input", function() {
+              step.title = titleInput.value;
+              if (typeof onChange === "function") { onChange(); }
+            });
+            titleBox.appendChild(titleInput);
+          } else {
+            var titleText = createElement("h3", "step-title-text");
+            titleText.textContent = step.title;
+            titleBox.appendChild(titleText);
+          }
+          
+          var stepLabel = createElement("div", "step-label");
+          stepLabel.textContent = "Steg " + (state.currentStep + 1) + " av " + state.steps.length;
+          titleBox.appendChild(stepLabel);
+          textSection.appendChild(titleBox);
+          
+          if (!state.hideText) {
+            if (state.editMode) {
+              var bodyTextarea = document.createElement("textarea");
+              bodyTextarea.value = step.body;
+              bodyTextarea.className = "step-body-textarea";
+              bodyTextarea.rows = 5;
+              bodyTextarea.placeholder = "Beskrivning...";
+              bodyTextarea.addEventListener("input", function() {
+                step.body = bodyTextarea.value;
+                if (typeof onChange === "function") { onChange(); }
+              });
+              textSection.appendChild(bodyTextarea);
+            } else {
+              var bodyText = createElement("p", "step-body-text");
+              bodyText.textContent = step.body;
+              textSection.appendChild(bodyText);
+            }
+          }
+          
+          var navButtons = createElement("div", "step-nav-buttons");
+          var prevBtn = createElement("button", "step-nav-btn");
+          prevBtn.type = "button";
+          prevBtn.innerHTML = "◀ Föregående";
           prevBtn.disabled = state.currentStep === 0;
+          prevBtn.addEventListener("click", function() {
+            if (state.currentStep > 0) {
+              state.currentStep--;
+              renderSingleView();
+              updateProgress();
+              if (typeof onChange === "function") { onChange(); }
+            }
+          });
+          
+          var nextBtn = createElement("button", "step-nav-btn step-nav-btn-primary");
+          nextBtn.type = "button";
+          nextBtn.innerHTML = "Nästa ▶";
           nextBtn.disabled = state.currentStep >= state.steps.length - 1;
+          nextBtn.addEventListener("click", function() {
+            if (state.currentStep < state.steps.length - 1) {
+              state.currentStep++;
+              renderSingleView();
+              updateProgress();
+              if (typeof onChange === "function") { onChange(); }
+            }
+          });
+          
+          navButtons.appendChild(prevBtn);
+          navButtons.appendChild(nextBtn);
+          textSection.appendChild(navButtons);
+          
+          singleContainer.appendChild(imageSection);
+          singleContainer.appendChild(textSection);
+          mainContent.appendChild(singleContainer);
         }
-
-        prevBtn.addEventListener("click", function () {
-          if (state.currentStep > 0) {
-            state.currentStep -= 1;
-            updateDisplay();
-            if (typeof onChange === "function") { onChange(); }
+        
+        function renderAllView() {
+          mainContent.innerHTML = "";
+          var gridContainer = createElement("div", "step-grid-view");
+          
+          state.steps.forEach(function(step, i) {
+            var card = createElement("div", "step-card");
+            
+            var cardImage = createElement("div", "step-card-image");
+            if (step.image) {
+              var img = document.createElement("img");
+              img.src = step.image;
+              img.alt = step.title;
+              cardImage.appendChild(img);
+            } else {
+              var placeholder = createElement("div", "step-card-placeholder");
+              placeholder.textContent = "📷";
+              cardImage.appendChild(placeholder);
+            }
+            
+            var badge = createElement("div", "step-card-badge");
+            badge.textContent = "Steg " + (i + 1);
+            cardImage.appendChild(badge);
+            
+            if (state.editMode) {
+              var changeBtn = createElement("button", "step-card-change-btn");
+              changeBtn.type = "button";
+              changeBtn.innerHTML = "📚";
+              changeBtn.title = "Byt bild";
+              changeBtn.addEventListener("click", function() {
+                openMediaLibrary(function(item) {
+                  step.image = item.url;
+                  step.imageSource = item.source;
+                  renderAllView();
+                  if (typeof onChange === "function") { onChange(); }
+                });
+              });
+              cardImage.appendChild(changeBtn);
+            }
+            
+            var cardBody = createElement("div", "step-card-body");
+            var cardTitle = createElement("div", "step-card-title");
+            cardTitle.textContent = step.title;
+            cardBody.appendChild(cardTitle);
+            
+            if (!state.hideText && step.body) {
+              var cardText = createElement("div", "step-card-text");
+              cardText.textContent = step.body;
+              cardBody.appendChild(cardText);
+            }
+            
+            var openBtn = createElement("button", "step-card-open-btn");
+            openBtn.type = "button";
+            openBtn.textContent = "Öppna";
+            openBtn.addEventListener("click", function() {
+              state.mode = "single";
+              state.currentStep = i;
+              if (state.editMode) {
+                state.editMode = true;
+              }
+              updateModeButtons();
+              renderSingleView();
+              updateProgress();
+              progressBar.style.display = "block";
+              if (typeof onChange === "function") { onChange(); }
+            });
+            cardBody.appendChild(openBtn);
+            
+            card.appendChild(cardImage);
+            card.appendChild(cardBody);
+            gridContainer.appendChild(card);
+          });
+          
+          mainContent.appendChild(gridContainer);
+        }
+        
+        function updateView() {
+          if (state.mode === "single") {
+            renderSingleView();
+            progressBar.style.display = "block";
+            updateProgress();
+          } else {
+            renderAllView();
+            progressBar.style.display = "none";
           }
-        });
-
-        nextBtn.addEventListener("click", function () {
-          if (state.currentStep < state.steps.length - 1) {
-            state.currentStep += 1;
-            updateDisplay();
-            if (typeof onChange === "function") { onChange(); }
-          }
-        });
-
-        stepsTextarea.addEventListener("input", function () {
-          state.steps = stepsTextarea.value.split("\n").filter(function (s) { return s.trim(); });
-          state.currentStep = Math.min(state.currentStep, Math.max(0, state.steps.length - 1));
-          updateDisplay();
+        }
+        
+        singleModeBtn.addEventListener("click", function() {
+          state.mode = "single";
+          updateModeButtons();
+          updateView();
           if (typeof onChange === "function") { onChange(); }
         });
-
-        container.appendChild(stepDisplay);
-        container.appendChild(controls);
-        container.appendChild(editArea);
-        updateDisplay();
+        
+        allModeBtn.addEventListener("click", function() {
+          state.mode = "all";
+          updateModeButtons();
+          updateView();
+          if (typeof onChange === "function") { onChange(); }
+        });
+        
+        editBtn.addEventListener("click", function() {
+          state.editMode = !state.editMode;
+          updateEditButton();
+          updateView();
+          if (typeof onChange === "function") { onChange(); }
+        });
+        
+        hideTextBtn.addEventListener("click", function() {
+          state.hideText = !state.hideText;
+          updateHideTextButton();
+          updateView();
+          if (typeof onChange === "function") { onChange(); }
+        });
+        
+        container.appendChild(header);
+        container.appendChild(progressLabel);
+        container.appendChild(progressBar);
+        container.appendChild(mainContent);
+        
+        updateModeButtons();
+        updateEditButton();
+        updateHideTextButton();
+        updateView();
+        
         container._state = state;
       },
       save: function (widget) {
         var content = widget.querySelector(".widget-content");
         var state = content && content._state;
-        if (!state) {
-          return { steps: ["Steg 1"], currentStep: 0 };
+        if (!state || !state.steps || !state.steps.length) {
+          return widgets["step-instruction"].defaults();
         }
         return {
-          steps: ensureArray(state.steps),
-          currentStep: ensureNumber(state.currentStep, 0)
+          steps: state.steps.map(function(s) {
+            return {
+              title: ensureString(s.title, ""),
+              body: ensureString(s.body, ""),
+              image: ensureString(s.image, ""),
+              imageSource: ensureString(s.imageSource, "")
+            };
+          }),
+          currentStep: ensureNumber(state.currentStep, 0),
+          mode: state.mode === "all" ? "all" : "single",
+          editMode: state.editMode === true,
+          hideText: state.hideText === true
         };
       }
     },
