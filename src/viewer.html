@@ -188,7 +188,7 @@
 
         if (!roomCode || !studentId) {
           console.log("Missing params, redirecting to join.html");
-          window.location.href = "join.html";
+          window.location.href = "/join.html";
           return;
         }
 
@@ -213,7 +213,7 @@
         var studentId = urlParams.get("student");
 
         if (!roomCode || !studentId) {
-          window.location.href = "join.html";
+          window.location.href = "/join.html";
           return;
         }
 
@@ -299,7 +299,7 @@
               } catch (error) {
                 console.warn("BroadcastChannel not supported", error);
               }
-              window.location.href = "join.html";
+              window.location.href = "/join.html";
             }
           });
         }
@@ -416,7 +416,7 @@
 
               if (room.code !== roomCode) {
                 alert("Rummet finns inte längre");
-                window.location.href = "join.html";
+                window.location.href = "/join.html";
                 return;
               }
 
@@ -437,12 +437,12 @@
               }
             } else {
               alert("Rummet finns inte");
-              window.location.href = "join.html";
+              window.location.href = "/join.html";
             }
           } catch (error) {
             console.error("Could not load room", error);
             alert("Ett fel uppstod");
-            window.location.href = "join.html";
+            window.location.href = "/join.html";
           }
         });
 
@@ -492,7 +492,7 @@
                 }
               } else if (data.type === "room-closed") {
                 alert("Lektionen har avslutats av läraren");
-                window.location.href = "join.html";
+                window.location.href = "/join.html";
               }
             };
           } catch (error) {

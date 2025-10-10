@@ -4979,7 +4979,7 @@
             roomCodeUpdatedAt.textContent = "Skapad " + now.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
           }
           if (roomJoinLinkPreview) {
-            var joinUrl = window.location.origin + window.location.pathname.replace("index.html", "") + "join.html?room=" + roomCode;
+            var joinUrl = window.location.origin + "/join.html?room=" + roomCode;
             roomJoinLinkPreview.textContent = joinUrl;
           }
 
@@ -5063,7 +5063,7 @@
           var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
           if (roomData) {
             var room = JSON.parse(roomData);
-            var viewerUrl = window.location.origin + window.location.pathname.replace("index.html", "") + "viewer.html?room=" + room.code + "&student=teacher-preview";
+            var viewerUrl = window.location.origin + "/viewer.html?room=" + room.code + "&student=teacher-preview";
             window.open(viewerUrl, "_blank");
           }
         } catch (error) {
