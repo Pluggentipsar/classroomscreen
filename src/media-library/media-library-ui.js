@@ -286,7 +286,7 @@ class MediaLibraryUI {
       const id = parseInt(el.dataset.id);
       const item = results.find(r => r.id === id);
       
-      el.querySelector('.select-btn').addEventListener('click', () => {
+      el.querySelector('.media-item-select-btn').addEventListener('click', () => {
         this.selectItem(item);
       });
       
@@ -323,7 +323,7 @@ class MediaLibraryUI {
             <button type="button" class="add-to-collection-btn" title="Lägg till i samling">
               📁
             </button>
-            <button type="button" class="select-btn">Välj</button>
+            <button type="button" class="media-item-select-btn">Välj</button>
           </div>
         </div>
       </div>
@@ -479,7 +479,7 @@ class MediaLibraryUI {
       const id = parseInt(el.dataset.id);
       const item = items.find(r => r.id === id);
       
-      el.querySelector('.select-btn').addEventListener('click', () => {
+      el.querySelector('.media-item-select-btn').addEventListener('click', () => {
         this.selectItem(item);
       });
       

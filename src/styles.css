@@ -4139,6 +4139,22 @@ body {
   font-size: 16px !important;
 }
 
+.media-item-select-btn {
+  background: var(--primary) !important;
+  color: white !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: auto !important;
+  opacity: 1 !important;
+}
+
+.media-item-select-btn:hover {
+  background: #3949AB !important;
+  transform: translateY(-1px);
+}
+
 .favorite-btn.active {
   background: rgba(255, 193, 7, 0.2) !important;
 }
