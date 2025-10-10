@@ -3937,15 +3937,15 @@ body {
 
 .media-library-content {
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   position: relative;
 }
 
 .view-panel {
   display: none;
   flex-direction: column;
-  height: 100%;
-  overflow: auto;
+  min-height: 100%;
+  overflow: visible;
 }
 
 .view-panel.active {
