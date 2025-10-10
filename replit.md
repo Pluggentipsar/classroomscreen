@@ -225,13 +225,22 @@ The application is fully functional and running on Replit. It consists of:
 - Elever kan INTE klicka på knappar eller redigera innehåll när låst
 - Läraren kontrollerar via 👥-knappen om elever kan interagera eller bara se
 
-**Timer real-time sync fix:**
+**Timer real-time sync fix (2025-10-10):**
 - Lagt till load() funktion i timer widget för att synka running state via WebSocket
 - När läraren startar timer broadcast:as `running=true` och `remaining` tid
 - Elever får synk-data och startar sin egen lokala timer-interval
 - Timer tickar nu i realtid på elevers skärmar!
 - När läraren pausar/reset:ar broadcast:as det och elevers timers uppdateras
 - Elever som joinar mitt i får korrekt återstående tid och timer fortsätter ticka
+
+**Timer load() bugfix (2025-10-10 Eftermiddag):**
+- Problem: Timer load() anropades för befintliga widgets men INTE för nya widgets i syncAllWidgets()
+- När elever joinade och fick en pågående timer skapades widgeten med createWidget() men load() anropades aldrig
+- Lösning: syncAllWidgets() anropar nu load() efter createWidget() för nya widgets
+- Fixad guard: Använder hasOwnProperty("data") && data != null istället för bara truthiness check
+- Detta säkerställer att load() anropas även när data är ett tomt objekt
+- Console.log tillagt i timer load() för debugging (kan tas bort senare)
+- Timer startar nu korrekt på elevers skärmar när de joinar mitt i en pågående timer!
 
 ## Running the Project
 
