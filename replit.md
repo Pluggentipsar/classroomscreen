@@ -20,7 +20,7 @@ Classroomscreen is an interactive classroom management tool designed to create e
 1.  **Widget System**: Comprehensive suite including Timer, Clock, Poll, Randomizer, Sound Level, Music, Image, Text, Work Symbols, Traffic Light, Timetable, Presentation, Lesson Progress, Group Maker, Scoreboard, Hand Raise, YouTube, QR Code, Step-by-step instructions, and Critical Thinking Cards.
     -   **Enhanced Image Widget**: Multi-image support, carousel navigation, fullscreen mode, and individual image deletion.
     -   **Enhanced Step-by-Step Instructions Widget**: Rich step format with media integration, "Ett i taget" and "Visa alla" view modes, and student view options.
-    -   **Enhanced Poll/Voting Widget**: Four poll types (Snabbkänsla, Flerval, Skala 1-5, Quiz), editable content, results control, and poll locking.
+    -   **Enhanced Poll/Voting Widget**: Five poll types (Snabbkänsla, Flerval, Skala 1-5, Quiz, Fritextsvar), editable content, results control, and poll locking. Fritextsvar allows students to write open-ended text responses with individual deletion and clear-all functionality.
 2.  **Media Library**: Hybrid image/symbol library integrating Pexels photos (Swedish search) and ARASAAC pictograms (English search). Includes favorites, recently used, and custom collections.
 3.  **Live Rooms**: Teachers can create rooms for real-time student interaction and content synchronization.
 4.  **Background Customization**: Options for selecting backgrounds from Media Library, URL input, or file uploads.

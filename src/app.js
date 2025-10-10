@@ -1348,7 +1348,8 @@
           editMode: false,
           showResults: true,
           pollLocked: false,
-          correctAnswer: null
+          correctAnswer: null,
+          textAnswers: []
         };
       },
       render: function (container, data, onChange) {
@@ -1360,7 +1361,8 @@
           editMode: data && data.editMode === true,
           showResults: data && data.showResults !== false,
           pollLocked: data && data.pollLocked === true,
-          correctAnswer: data && typeof data.correctAnswer === "number" ? data.correctAnswer : null
+          correctAnswer: data && typeof data.correctAnswer === "number" ? data.correctAnswer : null,
+          textAnswers: ensureArray(data && data.textAnswers)
         };
         
         while (state.votes.length < state.options.length) {
@@ -1374,7 +1376,8 @@
           { value: "quick", label: "👍 Snabbkänsla" },
           { value: "multiple", label: "☑️ Flerval" },
           { value: "scale", label: "📊 Skala 1-5" },
-          { value: "quiz", label: "🎯 Quiz" }
+          { value: "quiz", label: "🎯 Quiz" },
+          { value: "freetext", label: "💬 Fritextsvar" }
         ];
         types.forEach(function(type) {
           var option = document.createElement("option");
@@ -1483,6 +1486,13 @@
           });
           mainContent.appendChild(questionInput);
           
+          if (state.pollType === "freetext") {
+            var freetextInfo = createElement("div", "poll-freetext-info");
+            freetextInfo.textContent = "Elever kan skriva egna fritextsvar";
+            mainContent.appendChild(freetextInfo);
+            return;
+          }
+          
           var optionsContainer = createElement("div", "poll-edit-options");
           
           function renderEditOptions() {
@@ -1568,31 +1578,58 @@
             mainContent.appendChild(lockedMsg);
           }
           
-          var votingButtons = createElement("div", "poll-voting-buttons");
-          
-          state.options.forEach(function(option, index) {
-            var voteBtn = createElement("button", "poll-vote-btn");
-            voteBtn.type = "button";
-            voteBtn.textContent = option;
+          if (state.pollType === "freetext") {
+            var freetextContainer = createElement("div", "poll-freetext-container");
             
-            if (state.pollType === "quiz" && state.correctAnswer === index) {
-              voteBtn.classList.add("correct-answer");
-            }
+            var textInput = document.createElement("textarea");
+            textInput.className = "poll-freetext-input";
+            textInput.placeholder = "Skriv ditt svar här...";
+            textInput.rows = 4;
+            textInput.disabled = state.pollLocked;
             
-            voteBtn.disabled = state.pollLocked;
-            
-            voteBtn.addEventListener("click", function() {
-              if (!state.pollLocked) {
-                state.votes[index]++;
+            var submitBtn = createElement("button", "poll-freetext-submit");
+            submitBtn.type = "button";
+            submitBtn.textContent = "📤 Skicka svar";
+            submitBtn.disabled = state.pollLocked;
+            submitBtn.addEventListener("click", function() {
+              if (!state.pollLocked && textInput.value.trim()) {
+                state.textAnswers.push(textInput.value.trim());
+                textInput.value = "";
                 renderResults();
                 if (typeof onChange === "function") { onChange(); }
               }
             });
             
-            votingButtons.appendChild(voteBtn);
-          });
-          
-          mainContent.appendChild(votingButtons);
+            freetextContainer.appendChild(textInput);
+            freetextContainer.appendChild(submitBtn);
+            mainContent.appendChild(freetextContainer);
+          } else {
+            var votingButtons = createElement("div", "poll-voting-buttons");
+            
+            state.options.forEach(function(option, index) {
+              var voteBtn = createElement("button", "poll-vote-btn");
+              voteBtn.type = "button";
+              voteBtn.textContent = option;
+              
+              if (state.pollType === "quiz" && state.correctAnswer === index) {
+                voteBtn.classList.add("correct-answer");
+              }
+              
+              voteBtn.disabled = state.pollLocked;
+              
+              voteBtn.addEventListener("click", function() {
+                if (!state.pollLocked) {
+                  state.votes[index]++;
+                  renderResults();
+                  if (typeof onChange === "function") { onChange(); }
+                }
+              });
+              
+              votingButtons.appendChild(voteBtn);
+            });
+            
+            mainContent.appendChild(votingButtons);
+          }
           
           renderResults();
         }
@@ -1612,47 +1649,86 @@
           resultsTitle.textContent = "Resultat";
           resultsContainer.appendChild(resultsTitle);
           
-          var total = 0;
-          state.votes.forEach(function(v) {
-            total += ensureNumber(v, 0);
-          });
-          if (total === 0) total = 1;
-          
-          state.options.forEach(function(option, index) {
-            var resultRow = createElement("div", "poll-result-row");
-            
-            var label = createElement("span", "poll-result-label");
-            label.textContent = option;
-            resultRow.appendChild(label);
-            
-            var barContainer = createElement("div", "poll-result-bar-container");
-            var bar = createElement("div", "poll-result-bar");
-            var percentage = Math.round((ensureNumber(state.votes[index], 0) / total) * 100);
-            bar.style.width = percentage + "%";
-            
-            if (state.pollType === "quiz" && state.correctAnswer === index) {
-              bar.classList.add("correct-bar");
+          if (state.pollType === "freetext") {
+            if (state.textAnswers.length === 0) {
+              var noAnswers = createElement("p", "poll-no-answers");
+              noAnswers.textContent = "Inga svar ännu";
+              resultsContainer.appendChild(noAnswers);
+            } else {
+              var answersList = createElement("div", "poll-freetext-answers");
+              state.textAnswers.forEach(function(answer, idx) {
+                var answerItem = createElement("div", "poll-freetext-answer-item");
+                var answerText = createElement("span", "poll-freetext-answer-text");
+                answerText.textContent = answer;
+                
+                var deleteBtn = createElement("button", "poll-freetext-delete");
+                deleteBtn.type = "button";
+                deleteBtn.innerHTML = "×";
+                deleteBtn.addEventListener("click", function() {
+                  state.textAnswers.splice(idx, 1);
+                  renderResults();
+                  if (typeof onChange === "function") { onChange(); }
+                });
+                
+                answerItem.appendChild(answerText);
+                answerItem.appendChild(deleteBtn);
+                answersList.appendChild(answerItem);
+              });
+              resultsContainer.appendChild(answersList);
             }
             
-            barContainer.appendChild(bar);
-            resultRow.appendChild(barContainer);
+            var clearBtn = createElement("button", "poll-reset-btn");
+            clearBtn.type = "button";
+            clearBtn.textContent = "🔄 Rensa alla svar";
+            clearBtn.addEventListener("click", function() {
+              state.textAnswers = [];
+              renderResults();
+              if (typeof onChange === "function") { onChange(); }
+            });
+            resultsContainer.appendChild(clearBtn);
+          } else {
+            var total = 0;
+            state.votes.forEach(function(v) {
+              total += ensureNumber(v, 0);
+            });
+            if (total === 0) total = 1;
             
-            var count = createElement("span", "poll-result-count");
-            count.textContent = state.votes[index] + " (" + percentage + "%)";
-            resultRow.appendChild(count);
+            state.options.forEach(function(option, index) {
+              var resultRow = createElement("div", "poll-result-row");
+              
+              var label = createElement("span", "poll-result-label");
+              label.textContent = option;
+              resultRow.appendChild(label);
+              
+              var barContainer = createElement("div", "poll-result-bar-container");
+              var bar = createElement("div", "poll-result-bar");
+              var percentage = Math.round((ensureNumber(state.votes[index], 0) / total) * 100);
+              bar.style.width = percentage + "%";
+              
+              if (state.pollType === "quiz" && state.correctAnswer === index) {
+                bar.classList.add("correct-bar");
+              }
+              
+              barContainer.appendChild(bar);
+              resultRow.appendChild(barContainer);
+              
+              var count = createElement("span", "poll-result-count");
+              count.textContent = state.votes[index] + " (" + percentage + "%)";
+              resultRow.appendChild(count);
+              
+              resultsContainer.appendChild(resultRow);
+            });
             
-            resultsContainer.appendChild(resultRow);
-          });
-          
-          var resetBtn = createElement("button", "poll-reset-btn");
-          resetBtn.type = "button";
-          resetBtn.textContent = "🔄 Nollställ röster";
-          resetBtn.addEventListener("click", function() {
-            state.votes = state.votes.map(function() { return 0; });
-            renderResults();
-            if (typeof onChange === "function") { onChange(); }
-          });
-          resultsContainer.appendChild(resetBtn);
+            var resetBtn = createElement("button", "poll-reset-btn");
+            resetBtn.type = "button";
+            resetBtn.textContent = "🔄 Nollställ röster";
+            resetBtn.addEventListener("click", function() {
+              state.votes = state.votes.map(function() { return 0; });
+              renderResults();
+              if (typeof onChange === "function") { onChange(); }
+            });
+            resultsContainer.appendChild(resetBtn);
+          }
           
           mainContent.appendChild(resultsContainer);
         }
@@ -1687,7 +1763,8 @@
             editMode: false,
             showResults: true,
             pollLocked: false,
-            correctAnswer: null
+            correctAnswer: null,
+            textAnswers: []
           };
         }
         return {
@@ -1698,7 +1775,8 @@
           editMode: state.editMode === true,
           showResults: state.showResults !== false,
           pollLocked: state.pollLocked === true,
-          correctAnswer: state.correctAnswer
+          correctAnswer: state.correctAnswer,
+          textAnswers: ensureArray(state.textAnswers)
         };
       }
     },
