@@ -1867,72 +1867,198 @@
     "image": {
       title: "Bild",
       defaults: function () {
-        return { url: "https://images.unsplash.com/photo-1529158062015-cad636e69505?auto=format&fit=crop&w=1200&q=80" };
+        return { images: [] };
       },
       render: function (container, data, onChange) {
-        var state = { url: ensureString(data && data.url, "") };
+        var state = {
+          images: (data && Array.isArray(data.images)) ? data.images : (data && data.url ? [{url: data.url}] : []),
+          currentIndex: 0
+        };
+
+        var controls = createElement("div", "image-widget-controls");
+        
         var input = document.createElement("input");
         input.type = "url";
         input.placeholder = "Webbadress till bild";
-        input.value = state.url;
+        input.className = "image-url-input";
 
-        var button = document.createElement("button");
-        button.type = "button";
-        button.textContent = "Visa bild";
+        var addButton = document.createElement("button");
+        addButton.type = "button";
+        addButton.textContent = "Lägg till";
+        addButton.className = "add-image-btn";
 
         var libraryButton = document.createElement("button");
         libraryButton.type = "button";
         libraryButton.textContent = "📚 Välj från bibliotek";
         libraryButton.className = "library-btn";
-        libraryButton.title = "Välj symbol från biblioteket";
+        libraryButton.title = "Välj bilder från biblioteket (välj flera!)";
 
-        var preview = createElement("img", "image-preview");
-        if (state.url) {
-          preview.src = state.url;
-        }
+        controls.appendChild(input);
+        controls.appendChild(addButton);
+        controls.appendChild(libraryButton);
 
-        function updateImage() {
-          var value = input.value.trim();
-          if (!value) {
+        var carouselContainer = createElement("div", "image-carousel");
+        var imageDisplay = createElement("div", "image-display");
+        var currentImage = createElement("img", "carousel-image");
+        imageDisplay.appendChild(currentImage);
+
+        var prevBtn = createElement("button", "carousel-nav prev-btn");
+        prevBtn.type = "button";
+        prevBtn.innerHTML = "&#8249;";
+        prevBtn.title = "Föregående bild";
+
+        var nextBtn = createElement("button", "carousel-nav next-btn");
+        nextBtn.type = "button";
+        nextBtn.innerHTML = "&#8250;";
+        nextBtn.title = "Nästa bild";
+
+        var fullscreenBtn = createElement("button", "fullscreen-btn");
+        fullscreenBtn.type = "button";
+        fullscreenBtn.innerHTML = "⛶";
+        fullscreenBtn.title = "Helskärm";
+
+        var deleteBtn = createElement("button", "delete-image-btn");
+        deleteBtn.type = "button";
+        deleteBtn.innerHTML = "×";
+        deleteBtn.title = "Ta bort denna bild";
+
+        var indicator = createElement("div", "image-indicator");
+
+        imageDisplay.appendChild(deleteBtn);
+        imageDisplay.appendChild(fullscreenBtn);
+        carouselContainer.appendChild(prevBtn);
+        carouselContainer.appendChild(imageDisplay);
+        carouselContainer.appendChild(nextBtn);
+        carouselContainer.appendChild(indicator);
+
+        function updateDisplay() {
+          if (state.images.length === 0) {
+            currentImage.style.display = "none";
+            indicator.textContent = "Inga bilder - lägg till från biblioteket!";
+            prevBtn.style.display = "none";
+            nextBtn.style.display = "none";
+            deleteBtn.style.display = "none";
+            fullscreenBtn.style.display = "none";
             return;
           }
-          state.url = value;
-          preview.src = state.url;
+
+          currentImage.style.display = "block";
+          currentImage.src = state.images[state.currentIndex].url;
+          indicator.textContent = (state.currentIndex + 1) + " / " + state.images.length;
+          
+          prevBtn.style.display = state.images.length > 1 ? "block" : "none";
+          nextBtn.style.display = state.images.length > 1 ? "block" : "none";
+          deleteBtn.style.display = "block";
+          fullscreenBtn.style.display = "block";
+        }
+
+        function addImage(url) {
+          if (!url || !url.trim()) return;
+          state.images.push({ url: url.trim() });
+          state.currentIndex = state.images.length - 1;
+          updateDisplay();
           if (typeof onChange === "function") { onChange(); }
         }
 
-        button.addEventListener("click", updateImage);
-        input.addEventListener("keydown", function (event) {
+        addButton.addEventListener("click", function() {
+          addImage(input.value);
+          input.value = "";
+        });
+
+        input.addEventListener("keydown", function(event) {
           if (event.key === "Enter") {
             stopEvent(event);
-            updateImage();
+            addImage(input.value);
+            input.value = "";
           }
         });
 
-        libraryButton.addEventListener("click", function () {
+        libraryButton.addEventListener("click", function() {
           if (typeof mediaLibraryUI !== "undefined") {
             mediaLibraryUI.open({
-              title: "Välj symbol",
-              onSelect: function (item) {
-                state.url = item.url || item.highResUrl;
-                input.value = state.url;
-                preview.src = state.url;
+              title: "Välj bilder (välj flera!)",
+              allowMultiple: true,
+              onSelect: function(items) {
+                var itemsArray = Array.isArray(items) ? items : [items];
+                itemsArray.forEach(function(item) {
+                  state.images.push({ url: item.url || item.highResUrl });
+                });
+                state.currentIndex = state.images.length - 1;
+                updateDisplay();
                 if (typeof onChange === "function") { onChange(); }
               }
             });
           }
         });
 
-        container.appendChild(input);
-        container.appendChild(button);
-        container.appendChild(libraryButton);
-        container.appendChild(preview);
+        prevBtn.addEventListener("click", function() {
+          if (state.currentIndex > 0) {
+            state.currentIndex--;
+            updateDisplay();
+          }
+        });
+
+        nextBtn.addEventListener("click", function() {
+          if (state.currentIndex < state.images.length - 1) {
+            state.currentIndex++;
+            updateDisplay();
+          }
+        });
+
+        deleteBtn.addEventListener("click", function() {
+          if (state.images.length > 0) {
+            state.images.splice(state.currentIndex, 1);
+            if (state.currentIndex >= state.images.length) {
+              state.currentIndex = Math.max(0, state.images.length - 1);
+            }
+            updateDisplay();
+            if (typeof onChange === "function") { onChange(); }
+          }
+        });
+
+        fullscreenBtn.addEventListener("click", function() {
+          if (state.images.length > 0) {
+            var overlay = createElement("div", "fullscreen-overlay");
+            var fullImg = createElement("img", "fullscreen-image");
+            fullImg.src = state.images[state.currentIndex].url;
+            
+            var closeBtn = createElement("button", "fullscreen-close");
+            closeBtn.type = "button";
+            closeBtn.innerHTML = "×";
+            closeBtn.title = "Stäng helskärm (ESC)";
+            
+            overlay.appendChild(fullImg);
+            overlay.appendChild(closeBtn);
+            document.body.appendChild(overlay);
+
+            function closeFullscreen() {
+              document.body.removeChild(overlay);
+              document.removeEventListener("keydown", handleKey);
+            }
+
+            function handleKey(e) {
+              if (e.key === "Escape") {
+                closeFullscreen();
+              }
+            }
+
+            closeBtn.addEventListener("click", closeFullscreen);
+            overlay.addEventListener("click", function(e) {
+              if (e.target === overlay) closeFullscreen();
+            });
+            document.addEventListener("keydown", handleKey);
+          }
+        });
+
+        container.appendChild(controls);
+        container.appendChild(carouselContainer);
         container._state = state;
+        updateDisplay();
       },
       save: function (widget) {
         var content = widget.querySelector(".widget-content");
         var state = content && content._state;
-        return { url: state ? ensureString(state.url, "") : "" };
+        return { images: state && Array.isArray(state.images) ? state.images : [] };
       }
     },
     "pace-bar": {
