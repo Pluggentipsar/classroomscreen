@@ -3779,7 +3779,11 @@
         return;
       }
       managerRef.dragState = null;
-      managerRef.persist();
+      
+      // Viewers can drag for temporary organization, but don't save position
+      if (!window.isViewerMode) {
+        managerRef.persist();
+      }
     });
   };
 
@@ -3828,7 +3832,11 @@
         return;
       }
       resizeState = null;
-      managerRef.persist();
+      
+      // Viewers can resize for temporary organization, but don't save size
+      if (!window.isViewerMode) {
+        managerRef.persist();
+      }
     });
   };
   WidgetManager.prototype.persist = function () {
