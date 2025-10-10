@@ -3524,7 +3524,7 @@
     widget.setAttribute("data-id", id);
     var resolvedSyncId = typeof syncId === "string" && syncId ? syncId : generateId("widget");
     widget.setAttribute("data-sync-id", resolvedSyncId);
-    var viewerControlEnabled = typeof viewerControlEnabledParam === "boolean" ? viewerControlEnabledParam : false;
+    var viewerControlEnabled = typeof viewerControlEnabledParam === "boolean" ? viewerControlEnabledParam : true;
     widget.setAttribute("data-viewer-control", viewerControlEnabled ? "enabled" : "disabled");
     widget.setAttribute("data-font-size", fontSize || globalFontSize || "normal");
     if (fontOverride) {
@@ -4814,6 +4814,74 @@
   }
 
   /**
+   * Student management helpers
+   */
+  function addStudentToRoom(studentId, studentName) {
+    try {
+      var studentsData = window.localStorage.getItem("classroomscreen-room-students-v1");
+      var students = studentsData ? JSON.parse(studentsData) : [];
+      
+      // Check if student already exists
+      var exists = false;
+      for (var i = 0; i < students.length; i += 1) {
+        if (students[i].id === studentId) {
+          exists = true;
+          break;
+        }
+      }
+      
+      if (!exists) {
+        students.push({
+          id: studentId,
+          name: studentName || ("Elev " + (students.length + 1)),
+          joinedAt: new Date().toISOString(),
+          handRaised: false
+        });
+        window.localStorage.setItem("classroomscreen-room-students-v1", JSON.stringify(students));
+        console.log("Added student to room:", studentName || studentId);
+      }
+    } catch (error) {
+      console.error("Could not add student to room", error);
+    }
+  }
+
+  function removeStudentFromRoomById(studentId) {
+    try {
+      var studentsData = window.localStorage.getItem("classroomscreen-room-students-v1");
+      var students = studentsData ? JSON.parse(studentsData) : [];
+      var filtered = [];
+      for (var i = 0; i < students.length; i += 1) {
+        if (students[i] && students[i].id !== studentId) {
+          filtered.push(students[i]);
+        }
+      }
+      window.localStorage.setItem("classroomscreen-room-students-v1", JSON.stringify(filtered));
+      console.log("Removed student from room:", studentId);
+    } catch (error) {
+      console.error("Could not remove student from room", error);
+    }
+  }
+
+  function updateStudentHandRaise(studentId, raised) {
+    try {
+      var studentsData = window.localStorage.getItem("classroomscreen-room-students-v1");
+      var students = studentsData ? JSON.parse(studentsData) : [];
+      
+      for (var i = 0; i < students.length; i += 1) {
+        if (students[i] && students[i].id === studentId) {
+          students[i].handRaised = raised;
+          break;
+        }
+      }
+      
+      window.localStorage.setItem("classroomscreen-room-students-v1", JSON.stringify(students));
+      console.log("Updated hand raise for student:", studentId, raised);
+    } catch (error) {
+      console.error("Could not update hand raise", error);
+    }
+  }
+
+  /**
    * LiveSyncClient - Manages WebSocket connection for real-time room synchronization
    */
   function LiveSyncClient() {
@@ -4995,10 +5063,24 @@
 
         case 'viewer-joined':
           console.log("Viewer joined:", data.studentName || data.studentId);
+          // Add student to room
+          if (data.studentId) {
+            addStudentToRoom(data.studentId, data.studentName);
+            if (window.updateStudentListGlobal) {
+              window.updateStudentListGlobal();
+            }
+          }
           break;
 
         case 'viewer-left':
           console.log("Viewer left:", data.studentName || data.studentId);
+          // Remove student from room
+          if (data.studentId) {
+            removeStudentFromRoomById(data.studentId);
+            if (window.updateStudentListGlobal) {
+              window.updateStudentListGlobal();
+            }
+          }
           break;
 
         case 'sync-request':
@@ -5048,6 +5130,12 @@
         case 'hand-raise':
           // Handle hand raise from viewer
           console.log("Hand raise from student:", data.studentName, data.raised);
+          if (data.studentId) {
+            updateStudentHandRaise(data.studentId, data.raised);
+            if (window.updateStudentListGlobal) {
+              window.updateStudentListGlobal();
+            }
+          }
           break;
 
         default:
@@ -5294,13 +5382,67 @@
             });
           }
 
-          // Future: Sync other widget properties (position, size, data, etc.)
+          // Update position if provided
+          if (widgetData.position) {
+            widget.style.left = widgetData.position.left + "px";
+            widget.style.top = widgetData.position.top + "px";
+          }
+
+          // Update size if provided
+          if (widgetData.size) {
+            widget.style.width = widgetData.size.width + "px";
+            widget.style.height = widgetData.size.height + "px";
+          }
+
+          // Update minimized state if provided
+          if (widgetData.hasOwnProperty("minimized")) {
+            var isMinimized = widget.getAttribute("data-minimized") === "true";
+            if (widgetData.minimized !== isMinimized) {
+              widget.setAttribute("data-minimized", widgetData.minimized ? "true" : "false");
+              if (widgetData.minimized) {
+                widget.classList.add("minimized");
+              } else {
+                widget.classList.remove("minimized");
+              }
+            }
+          }
+
+          // Update widget data if provided and widget has load function
+          if (widgetData.data && entry.load) {
+            entry.load(widget, widgetData.data);
+          }
+
           break;
         }
       }
 
+      // Widget not found - create it!
       if (!found) {
-        console.log("Widget not found in viewer for sync:", widgetData.syncId, widgetData.type);
+        console.log("Creating new widget in viewer:", widgetData.syncId, widgetData.type);
+        
+        // Create widget with data from teacher
+        // Use true as default if viewerControlEnabled is not explicitly set
+        var viewerControlForWidget = widgetData.hasOwnProperty("viewerControlEnabled") 
+          ? widgetData.viewerControlEnabled 
+          : true;
+        
+        var newWidget = manager.createWidget(
+          widgetData.type,
+          widgetData.data || {},
+          widgetData.position || { left: 20, top: 20 },
+          widgetData.size || null,
+          widgetData.minimized || false,
+          null, // fontSize - will use default
+          false, // fontOverride
+          widgetData.syncId,
+          viewerControlForWidget
+        );
+
+        if (newWidget) {
+          console.log("Successfully created widget:", widgetData.syncId);
+        } else {
+          console.warn("Failed to create widget:", widgetData.syncId, widgetData.type);
+        }
       }
     }
 
@@ -5629,6 +5771,9 @@
         console.error("Could not update student list", error);
       }
     }
+
+    // Expose updateStudentList globally for WebSocket event handlers
+    window.updateStudentListGlobal = updateStudentList;
 
     function removeStudentFromRoom(studentId) {
       try {
