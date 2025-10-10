@@ -902,6 +902,11 @@
               }
             }
           }, 1000);
+          
+          // Broadcast timer start
+          if (typeof onChange === "function") {
+            onChange();
+          }
         });
 
         reset.addEventListener("click", function () {
@@ -931,7 +936,14 @@
         var state = content && content._state;
         var minutes = state && state.minutes ? state.minutes : 5;
         var alertType = state && state.alertType ? state.alertType : "sound";
-        return { minutes: ensureNumber(minutes, 5), alertType: alertType };
+        var running = state && state.running ? true : false;
+        var remaining = state && typeof state.remaining === "number" ? state.remaining : state.duration;
+        return { 
+          minutes: ensureNumber(minutes, 5), 
+          alertType: alertType,
+          running: running,
+          remaining: remaining
+        };
       },
       destroy: function (widget) {
         var content = widget.querySelector(".widget-content");
@@ -3324,6 +3336,7 @@
             if (state.currentSlide > 0) {
               state.currentSlide -= 1;
               renderPresentationView();
+              if (typeof onChange === "function") { onChange(); }
             }
           });
 
@@ -3334,6 +3347,7 @@
             if (state.currentSlide < state.slides.length - 1) {
               state.currentSlide += 1;
               renderPresentationView();
+              if (typeof onChange === "function") { onChange(); }
             }
           });
 
@@ -3396,9 +3410,11 @@
             if (e.key === "ArrowLeft" && state.currentSlide > 0) {
               state.currentSlide -= 1;
               renderPresentationView();
+              if (typeof onChange === "function") { onChange(); }
             } else if (e.key === "ArrowRight" && state.currentSlide < state.slides.length - 1) {
               state.currentSlide += 1;
               renderPresentationView();
+              if (typeof onChange === "function") { onChange(); }
             } else if (e.key === "Escape") {
               exitPresentationMode();
               document.removeEventListener("keydown", keyHandler);
@@ -3429,6 +3445,7 @@
               state.currentSlide -= 1;
               renderSlidesList();
               renderCanvas();
+              if (typeof onChange === "function") { onChange(); }
             }
           } else if ((e.ctrlKey || e.metaKey) && e.key === "ArrowRight") {
             e.preventDefault();
@@ -3436,6 +3453,7 @@
               state.currentSlide += 1;
               renderSlidesList();
               renderCanvas();
+              if (typeof onChange === "function") { onChange(); }
             }
           } else if ((e.ctrlKey || e.metaKey) && e.key === "d") {
             e.preventDefault();
@@ -3753,7 +3771,8 @@
       if (event.button !== 0) {
         return;
       }
-      if (event.target.tagName === "BUTTON") {
+      // Check if clicked on a button or inside a button
+      if (event.target.tagName === "BUTTON" || event.target.closest("button")) {
         return;
       }
       managerRef.dragState = {

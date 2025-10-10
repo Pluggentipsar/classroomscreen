@@ -198,6 +198,26 @@ The application is fully functional and running on Replit. It consists of:
   - Ändringar broadcast:as till läraren via WebSocket
   - persist() anropas normalt för innehållsändringar (inte position/size)
 
+#### Bugfixar (2025-10-10 Eftermiddag/Kväll)
+
+**Elevstyrning-knappen (👥) fix:**
+- Problem: Knappen var inte klickbar eftersom drag-event startade när man klickade på <span> ikonen inuti knappen
+- Lösning: Uppdaterad makeDraggable() för att kolla event.target.closest("button") förutom tagName check
+- Nu fungerar alla knappar i widget-header även när de innehåller child elements
+
+**Timer widget broadcast fix:**
+- Timer broadcaster nu när den STARTAR (inte bara pausa/reset)
+- save() sparar nu running state och remaining time för korrekt synkning
+- onChange() anropas vid: start, pausa, reset, minuter ändras, ljudinställningar ändras
+- Elever ser timer-ändringar i realtid
+
+**Presentation widget broadcast fix:**
+- Presentation broadcaster nu vid ALL slide-navigering:
+  - Prev/Next knappar i presentation mode
+  - Arrow keys i presentation mode (ArrowLeft/ArrowRight)
+  - Ctrl/Cmd+Arrow keys i edit mode
+- Elever ser vilken slide läraren visar i realtid
+
 ## Running the Project
 
 ### Development
