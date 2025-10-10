@@ -667,85 +667,160 @@
           remaining: minutes * 60,
           running: false,
           interval: null,
-          alertType: alertType
+          alertType: alertType,
+          minutes: minutes
         };
 
-        var display = createElement("div", "clock-widget");
-        var slider = document.createElement("input");
-        slider.type = "range";
-        slider.min = "1";
-        slider.max = "60";
-        slider.value = String(minutes);
+        // Create progress ring SVG
+        var radius = 64;
+        var circumference = 2 * Math.PI * radius;
+        var ringContainer = createElement("div", "progress-ring-container");
+        var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", "progress-ring");
+        svg.setAttribute("width", "160");
+        svg.setAttribute("height", "160");
+        
+        var bgCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        bgCircle.setAttribute("class", "progress-ring-bg");
+        bgCircle.setAttribute("cx", "80");
+        bgCircle.setAttribute("cy", "80");
+        bgCircle.setAttribute("r", String(radius));
+        bgCircle.setAttribute("stroke-width", "10");
+        bgCircle.setAttribute("fill", "none");
+        
+        var fillCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        fillCircle.setAttribute("class", "progress-ring-fill");
+        fillCircle.setAttribute("cx", "80");
+        fillCircle.setAttribute("cy", "80");
+        fillCircle.setAttribute("r", String(radius));
+        fillCircle.setAttribute("stroke-width", "12");
+        fillCircle.setAttribute("fill", "none");
+        fillCircle.setAttribute("stroke-dasharray", String(circumference));
+        fillCircle.setAttribute("stroke-dashoffset", "0");
+        
+        svg.appendChild(bgCircle);
+        svg.appendChild(fillCircle);
+        
+        // Display in center of ring
+        var centerDiv = createElement("div", "progress-ring-center");
+        var display = createElement("div", "big-digits");
+        centerDiv.appendChild(display);
+        
+        ringContainer.appendChild(svg);
+        ringContainer.appendChild(centerDiv);
 
-        var alertOptions = createElement("div", "timer-alert-options");
-        var soundLabel = document.createElement("label");
-        var soundRadio = document.createElement("input");
-        soundRadio.type = "radio";
-        soundRadio.name = "timer-alert-" + Date.now();
-        soundRadio.value = "sound";
-        soundRadio.checked = alertType === "sound";
-        soundLabel.appendChild(soundRadio);
-        soundLabel.appendChild(document.createTextNode(" 🔊 Ljudsignal"));
+        // Length control with +/- buttons
+        var lengthControl = createElement("div", "timer-length-control");
+        var lengthLabel = createElement("div", "timer-length-label");
+        lengthLabel.textContent = "Längd";
+        var lengthButtons = createElement("div", "timer-length-buttons");
+        var minusBtn = createElement("button", "timer-length-btn");
+        minusBtn.textContent = "−";
+        minusBtn.type = "button";
+        var lengthValue = createElement("div", "timer-length-value");
+        lengthValue.textContent = minutes + " min";
+        var plusBtn = createElement("button", "timer-length-btn");
+        plusBtn.textContent = "+";
+        plusBtn.type = "button";
+        
+        lengthButtons.appendChild(minusBtn);
+        lengthButtons.appendChild(lengthValue);
+        lengthButtons.appendChild(plusBtn);
+        lengthControl.appendChild(lengthLabel);
+        lengthControl.appendChild(lengthButtons);
 
-        var visualLabel = document.createElement("label");
-        var visualRadio = document.createElement("input");
-        visualRadio.type = "radio";
-        visualRadio.name = soundRadio.name;
-        visualRadio.value = "visual";
-        visualRadio.checked = alertType === "visual";
-        visualLabel.appendChild(visualRadio);
-        visualLabel.appendChild(document.createTextNode(" 💡 Visuell pulsering"));
+        // Toggle switches for alert options
+        var toggleGroup = createElement("div", "toggle-group");
+        
+        var soundToggle = createElement("label", "toggle-switch");
+        var soundInput = createElement("div", "toggle-switch-input");
+        if (alertType === "sound") soundInput.classList.add("active");
+        var soundLabel = createElement("div", "toggle-switch-label");
+        soundLabel.innerHTML = '<span style="font-size: 16px;">🔊</span> <span>Ljudsignal</span>';
+        soundToggle.appendChild(soundInput);
+        soundToggle.appendChild(soundLabel);
+        
+        var visualToggle = createElement("label", "toggle-switch");
+        var visualInput = createElement("div", "toggle-switch-input");
+        if (alertType === "visual") visualInput.classList.add("active");
+        var visualLabel = createElement("div", "toggle-switch-label");
+        visualLabel.innerHTML = '<span style="font-size: 16px;">💡</span> <span>Visuell puls</span>';
+        visualToggle.appendChild(visualInput);
+        visualToggle.appendChild(visualLabel);
+        
+        toggleGroup.appendChild(soundToggle);
+        toggleGroup.appendChild(visualToggle);
 
-        alertOptions.appendChild(soundLabel);
-        alertOptions.appendChild(visualLabel);
-
-        var controls = createElement("div", "timer-controls");
+        // Controls
+        var controls = createElement("div", "timer-controls-row");
         var startStop = document.createElement("button");
         startStop.setAttribute("data-state", "start");
-        startStop.textContent = "Starta";
+        startStop.innerHTML = "▶ Starta";
         var reset = document.createElement("button");
-        reset.textContent = "\u00c5terst\u00e4ll";
+        reset.innerHTML = "↻ Återställ";
 
         controls.appendChild(startStop);
         controls.appendChild(reset);
 
-        container.appendChild(display);
-        container.appendChild(slider);
-        container.appendChild(alertOptions);
+        // Layout
+        container.appendChild(ringContainer);
+        container.appendChild(lengthControl);
+        container.appendChild(toggleGroup);
         container.appendChild(controls);
 
-        soundRadio.addEventListener("change", function () {
-          // Block interaction if viewer mode and control is disabled
+        // +/- button listeners
+        minusBtn.addEventListener("click", function () {
           if (window.isViewerMode) {
             var widget = container.closest(".widget");
             var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-            if (!viewerControlEnabled) {
-              console.log("Timer alert type change blocked - viewer control disabled");
-              return;
-            }
+            if (!viewerControlEnabled) return;
           }
-
-          state.alertType = "sound";
-          if (typeof onChange === "function") {
-            onChange();
+          if (state.running) return;
+          state.minutes = Math.max(1, state.minutes - 1);
+          state.duration = state.minutes * 60;
+          state.remaining = state.duration;
+          lengthValue.textContent = state.minutes + " min";
+          updateDisplay();
+          if (typeof onChange === "function") onChange();
+        });
+        
+        plusBtn.addEventListener("click", function () {
+          if (window.isViewerMode) {
+            var widget = container.closest(".widget");
+            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+            if (!viewerControlEnabled) return;
           }
+          if (state.running) return;
+          state.minutes = Math.min(99, state.minutes + 1);
+          state.duration = state.minutes * 60;
+          state.remaining = state.duration;
+          lengthValue.textContent = state.minutes + " min";
+          updateDisplay();
+          if (typeof onChange === "function") onChange();
         });
 
-        visualRadio.addEventListener("change", function () {
-          // Block interaction if viewer mode and control is disabled
+        soundToggle.addEventListener("click", function () {
           if (window.isViewerMode) {
             var widget = container.closest(".widget");
             var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-            if (!viewerControlEnabled) {
-              console.log("Timer alert type change blocked - viewer control disabled");
-              return;
-            }
+            if (!viewerControlEnabled) return;
           }
+          state.alertType = "sound";
+          soundInput.classList.add("active");
+          visualInput.classList.remove("active");
+          if (typeof onChange === "function") onChange();
+        });
 
-          state.alertType = "visual";
-          if (typeof onChange === "function") {
-            onChange();
+        visualToggle.addEventListener("click", function () {
+          if (window.isViewerMode) {
+            var widget = container.closest(".widget");
+            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+            if (!viewerControlEnabled) return;
           }
+          state.alertType = "visual";
+          visualInput.classList.add("active");
+          soundInput.classList.remove("active");
+          if (typeof onChange === "function") onChange();
         });
 
         function updateDisplay() {
@@ -753,13 +828,26 @@
           var m = Math.floor(seconds / 60);
           var s = seconds % 60;
           display.textContent = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+          
+          // Update progress ring
+          var progress = state.duration > 0 ? state.remaining / state.duration : 0;
+          var offset = circumference * (1 - progress);
+          fillCircle.setAttribute("stroke-dashoffset", String(offset));
+          
+          // Add warning class for last 10 seconds
+          if (state.remaining <= 10 && state.remaining > 0) {
+            fillCircle.classList.add("warning");
+          } else {
+            fillCircle.classList.remove("warning");
+          }
         }
 
         function stopTimer() {
           state.running = false;
           startStop.setAttribute("data-state", "start");
-          startStop.textContent = "Starta";
+          startStop.innerHTML = "▶ Starta";
           display.classList.remove("timer-pulse");
+          fillCircle.classList.remove("warning", "danger");
           if (state.interval) {
             window.clearInterval(state.interval);
             state.interval = null;
@@ -767,7 +855,6 @@
         }
 
         startStop.addEventListener("click", function () {
-          // Block interaction if viewer mode and control is disabled
           if (window.isViewerMode) {
             var widget = container.closest(".widget");
             var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
@@ -787,8 +874,9 @@
           state.running = true;
           state.remaining = state.duration;
           startStop.setAttribute("data-state", "stop");
-          startStop.textContent = "Pausa";
+          startStop.innerHTML = "⏸ Pausa";
           display.classList.remove("timer-pulse");
+          fillCircle.classList.remove("warning", "danger");
           state.interval = window.setInterval(function () {
             state.remaining = Math.max(0, state.remaining - 1);
             updateDisplay();
@@ -802,13 +890,13 @@
                 }
               } else {
                 display.classList.add("timer-pulse");
+                fillCircle.classList.add("danger");
               }
             }
           }, 1000);
         });
 
         reset.addEventListener("click", function () {
-          // Block interaction if viewer mode and control is disabled
           if (window.isViewerMode) {
             var widget = container.closest(".widget");
             var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
@@ -819,27 +907,7 @@
           }
 
           stopTimer();
-          state.duration = parseInt(slider.value, 10) * 60;
-          state.remaining = state.duration;
-          updateDisplay();
-          if (typeof onChange === "function") {
-            onChange();
-          }
-        });
-
-        slider.addEventListener("input", function () {
-          // Block interaction if viewer mode and control is disabled
-          if (window.isViewerMode) {
-            var widget = container.closest(".widget");
-            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-            if (!viewerControlEnabled) {
-              console.log("Timer slider blocked - viewer control disabled");
-              return;
-            }
-          }
-
-          stopTimer();
-          state.duration = parseInt(slider.value, 10) * 60;
+          state.duration = state.minutes * 60;
           state.remaining = state.duration;
           updateDisplay();
           if (typeof onChange === "function") {
@@ -851,10 +919,9 @@
         container._state = state;
       },
       save: function (widget) {
-        var slider = widget.querySelector("input[type='range']");
-        var minutes = slider ? parseInt(slider.value, 10) : 5;
         var content = widget.querySelector(".widget-content");
         var state = content && content._state;
+        var minutes = state && state.minutes ? state.minutes : 5;
         var alertType = state && state.alertType ? state.alertType : "sound";
         return { minutes: ensureNumber(minutes, 5), alertType: alertType };
       },
@@ -5193,6 +5260,51 @@
     }, 2000);
   }
 
+  function initHighContrast() {
+    var toggleBtn = document.getElementById("highContrastToggle");
+    var appShell = document.querySelector(".app-shell");
+    var HIGH_CONTRAST_KEY = "classroomscreen-high-contrast-v1";
+    
+    if (!toggleBtn || !appShell) {
+      return;
+    }
+    
+    // Load saved state
+    var savedState = false;
+    try {
+      savedState = window.localStorage.getItem(HIGH_CONTRAST_KEY) === "true";
+    } catch (error) {
+      console.warn("Could not load high contrast state", error);
+    }
+    
+    function setHighContrast(enabled) {
+      if (enabled) {
+        appShell.classList.add("high-contrast-mode");
+        toggleBtn.style.background = "rgba(0, 0, 0, 0.9)";
+        toggleBtn.style.color = "white";
+      } else {
+        appShell.classList.remove("high-contrast-mode");
+        toggleBtn.style.background = "";
+        toggleBtn.style.color = "";
+      }
+      
+      try {
+        window.localStorage.setItem(HIGH_CONTRAST_KEY, enabled ? "true" : "false");
+      } catch (error) {
+        console.warn("Could not save high contrast state", error);
+      }
+    }
+    
+    // Apply saved state
+    setHighContrast(savedState);
+    
+    // Toggle on click
+    toggleBtn.addEventListener("click", function() {
+      var isEnabled = appShell.classList.contains("high-contrast-mode");
+      setHighContrast(!isEnabled);
+    });
+  }
+
   function initApp() {
     manager = new WidgetManager(widgetLayer);
     setBackground(currentBackground, { skipPersist: true, skipHighlight: true });
@@ -5205,6 +5317,7 @@
     initHeaderActions();
     initUIToggleFab();
     initWidgetContextMenu();
+    initHighContrast();
 
     try {
       var savedScreenId = window.localStorage.getItem(CURRENT_SCREEN_KEY);

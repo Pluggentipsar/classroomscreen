@@ -53,12 +53,54 @@ The application is fully functional and running on Replit. It consists of:
 7. **Real-time Sync**: Widget states sync between teacher and students
 
 ### Recent Changes (2025-10-10)
+
+#### Initial Setup
 - Set up Node.js HTTP server to serve static files
 - Configured server to run on port 5000 with 0.0.0.0 host
 - Added Cache-Control headers to prevent caching issues
 - Created package.json for Node.js project
 - Added .gitignore for Node.js projects
 - Configured Replit workflow to run the server
+
+#### Widget Design Improvements (Projektorvänligt)
+**CSS Förbättringar:**
+- Uppdaterad glass card-effekt med bättre transparens (70% opacity)
+- Förbättrad backdrop-filter med 20px blur
+- Större border-radius (24px) för modernare look
+- Bättre box-shadows för djup
+- High-contrast mode CSS med 95% opacity för ljusa rum
+- CSS-variabler för färger: success (#10b981), warning (#f59e0b), danger (#ef4444)
+
+**Typografi:**
+- Stora, tydliga siffror (72px för klocka, 64px för big-digits)
+- Tabular-nums för jämn sifferbredd
+- Mindre, diskreta rubriker (12px, uppercase, med blå prick)
+- Förbättrad hierarki med tydliga nivåer
+
+**Timer Widget - Totalrenoverad:**
+- SVG progressring som visuellt visar återstående tid
+- +/- knappar istället för slider för bättre kontroll
+- Modern toggle-switch design för ljud/visuell puls
+- Progressringen ändrar färg vid varning (sista 10 sek)
+- Ikoner på knappar (▶ Starta, ⏸ Pausa, ↻ Återställ)
+
+**High-Contrast Mode:**
+- Toggle-knapp (◐) i header för snabb åtkomst
+- Sparas i localStorage
+- Ökar kontrast och opacitet för ljusa klassrum
+- Perfekt för projektorer i dagsljus
+
+**Knappar & Kontroller:**
+- Större klickytor (min-height 44px)
+- Förbättrade hover-effekter med transform
+- Tydligare states (primary, ghost, danger)
+- Ikoner + text för bättre förståelse
+
+**Traffic Light Widget:**
+- Större lampor (64px diameter)
+- Förbättrad glow-effekt vid aktivering
+- Skala-animation när aktiv
+- Bättre färger från CSS-variabler
 
 ## Running the Project
 
