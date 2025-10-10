@@ -242,6 +242,46 @@ The application is fully functional and running on Replit. It consists of:
 - Console.log tillagt i timer load() för debugging (kan tas bort senare)
 - Timer startar nu korrekt på elevers skärmar när de joinar mitt i en pågående timer!
 
+#### Smart Dock - Widget-meny (2025-10-10)
+
+**Kompakt Dock-design:**
+- Ersatt gammal toolbar med modern Smart Dock längst ner
+- Kompakt rundad design med bara favoritikoner (ingen text)
+- 5 favorit-widgets som standard: Bakgrund, Omröstning, Namnslumpare, Musikspelare, Timer
+- "Mer" knapp med text för att öppna launcher
+- Glasmorfism-effekt med backdrop-blur och skuggor
+- Responsiv design för mobil och desktop
+
+**Launcher-panel (sökbar widget-palett):**
+- Öppnas via "Mer" knapp eller Ctrl/Cmd+K snabbtangent
+- Sökfält med realtidsfiltrering av widgets
+- Svenska namn på alla widgets genomgående:
+  - Bakgrund, Omröstning, Namnslumpare, Ljudnivå, Musikspelare
+  - Bild, Instruktioner, Arbetssätt, Trafikljus, Schema, Timer, Klocka
+  - Presentation, Lektionsprogress, Gruppmakare, Poängtavla, Handuppräckning
+  - YouTube, QR-kod, Stegvis instruktion, Källkritik-kort, och mer
+- Snabbval-sektion med favoritwidgets (som chips/badges)
+- Senaste-sektion som visar de 5 senast använda widgets
+- Grid med alla tillgängliga widgets (ikoner + svenska namn)
+- Escape-tangent stänger launcher
+- Backdrop-overlay med blur-effekt
+
+**Funktionalitet:**
+- Favoritikoner i dock för snabb åtkomst (1-klick)
+- Launcher för alla widgets med sök och filtrering
+- Recent widgets sparas automatiskt när widgets skapas
+- Svenska tooltips på dock-ikoner
+- Keyboard shortcuts: Ctrl/Cmd+K öppnar, Escape stänger
+- Responsiv: mobil-anpassad layout med mindre ikoner
+
+**Teknisk implementation:**
+- `widgetNamesSwedish` objekt mappar widget-typer till svenska namn
+- `getWidgetName()` hämtar svenska namn för visning
+- `getWidgetIcon()` hämtar emoji-ikoner för widgets
+- `renderLauncherGrid()` skapar widget-kort dynamiskt
+- `renderLauncherQuickAccess()` visar favoriter och senaste
+- `launchWidget()` skapar widget och lägger till i recent
+
 ## Running the Project
 
 ### Development
