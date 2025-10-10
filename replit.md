@@ -104,9 +104,11 @@ The application is fully functional and running on Replit. It consists of:
 
 **UI/UX Förbättringar - Diskreta ikoner:**
 - Ersatt "Elevstyrning av/på" text med diskret ikon (👥)
+- Klickbar toggle med tydlig visuell feedback:
+  - Grå bakgrund när AV (60% opacity på ikon)
+  - Blå bakgrund när PÅ (100% opacity på ikon)
 - Custom tooltips med fade-in animation vid hover
-- Ikoner med opacity-effekter (60% normal, 100% när enabled/hover)
-- Förbättrade tooltips med tydligare information
+- Hover-effekt med scale(1.1) för bättre användbarhet
 - Genomgående diskret design som inte distraherar från innehållet
 
 ## Running the Project

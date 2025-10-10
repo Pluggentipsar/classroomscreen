@@ -665,10 +665,19 @@ body {
 }
 
 /* Diskret ikon för elevstyrning */
+.widget-viewer-control-btn {
+  transition: all 0.2s ease;
+}
+
 .widget-viewer-control-btn .icon {
   font-size: 14px;
   opacity: 0.6;
   transition: opacity 0.2s ease;
+}
+
+/* När elevstyrning är PÅ - tydlig visuell feedback */
+.widget-viewer-control-btn[data-enabled="true"] {
+  background: rgba(59, 130, 246, 0.2) !important;
 }
 
 .widget-viewer-control-btn[data-enabled="true"] .icon {
@@ -677,6 +686,10 @@ body {
 
 .widget-viewer-control-btn:hover .icon {
   opacity: 1;
+}
+
+.widget-viewer-control-btn[data-enabled="true"]:hover {
+  background: rgba(59, 130, 246, 0.3) !important;
 }
 
 /* Förbättrade tooltips */
