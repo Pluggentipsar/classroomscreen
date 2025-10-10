@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gå med i lektion – Classroomscreen</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin: 0;
+        font-family: "Inter", system-ui, sans-serif;
+      }
+
+      .join-container {
+        background: white;
+        padding: 48px;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 400px;
+        width: 90%;
+      }
+
+      .join-header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .join-header h1 {
+        margin: 0 0 8px 0;
+        font-size: 28px;
+        color: #1d2125;
+      }
+
+      .join-header p {
+        margin: 0;
+        color: #64676b;
+        font-size: 14px;
+      }
+
+      .join-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .form-group label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #1d2125;
+      }
+
+      .form-group input {
+        padding: 14px 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px;
+        font-family: inherit;
+        transition: all 0.2s ease;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .form-group input::placeholder {
+        color: #999;
+      }
+
+      .join-button {
+        padding: 16px 24px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 8px;
+      }
+
+      .join-button:hover {
+        background: #5568d3;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      .join-button:active {
+        transform: translateY(0);
+      }
+
+      .error-message {
+        background: #ffebee;
+        color: #c62828;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        display: none;
+      }
+
+      .error-message.show {
+        display: block;
+      }
+
+      .join-footer {
+        text-align: center;
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid #e0e0e0;
+      }
+
+      .join-footer a {
+        color: #667eea;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .join-footer a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="join-container">
+      <div class="join-header">
+        <h1>📚 Gå med i lektion</h1>
+        <p>Ange rumskoden från din lärare</p>
+      </div>
+
+      <form class="join-form" id="joinForm">
+        <div class="form-group">
+          <label for="roomCodeInput">Rumskod</label>
+          <input
+            type="text"
+            id="roomCodeInput"
+            placeholder="t.ex. MATTE42"
+            maxlength="6"
+            required
+            autocomplete="off"
+            style="text-transform: uppercase"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="studentNameInput">Ditt namn</label>
+          <input
+            type="text"
+            id="studentNameInput"
+            placeholder="Ange ditt för- och efternamn"
+            maxlength="50"
+            required
+            autocomplete="name"
+          />
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <button type="submit" class="join-button">Gå med i lektionen</button>
+      </form>
+
+      <div class="join-footer">
+        <a href="index.html">← Tillbaka till startsidan</a>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var joinForm = document.getElementById("joinForm");
+        var roomCodeInput = document.getElementById("roomCodeInput");
+        var studentNameInput = document.getElementById("studentNameInput");
+        var errorMessage = document.getElementById("errorMessage");
+
+        // Auto-uppercase room code
+        roomCodeInput.addEventListener("input", function() {
+          this.value = this.value.toUpperCase();
+        });
+
+        joinForm.addEventListener("submit", function(e) {
+          e.preventDefault();
+
+          var roomCode = roomCodeInput.value.trim().toUpperCase();
+          var studentName = studentNameInput.value.trim();
+
+          if (!roomCode || !studentName) {
+            showError("Fyll i både rumskod och ditt namn");
+            return;
+          }
+
+          // Try to join room
+          var room = null;
+          try {
+            var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
+            if (roomData) {
+              room = JSON.parse(roomData);
+            }
+          } catch (error) {
+            console.error("Kunde inte läsa rum", error);
+          }
+
+          if (!room || room.code !== roomCode) {
+            showError("Rumskoden är felaktig eller rummet finns inte");
+            return;
+          }
+
+          // Add student to room
+          var students = [];
+          try {
+            var studentsData = window.localStorage.getItem("classroomscreen-room-students-v1");
+            if (studentsData) {
+              students = JSON.parse(studentsData);
+            }
+          } catch (error) {
+            console.error("Kunde inte läsa elever", error);
+          }
+
+          var studentId = "student-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+          var joinedTimestamp = new Date().toISOString();
+          var nextStudents = [];
+          for (var idx = 0; idx < students.length; idx += 1) {
+            var existing = students[idx];
+            if (!existing) { continue; }
+            if (existing.id === studentId && existing.roomCode === roomCode) {
+              continue;
+            }
+            nextStudents.push(existing);
+          }
+          nextStudents.push({
+            id: studentId,
+            name: studentName,
+            joinedAt: joinedTimestamp,
+            handRaised: false,
+            status: "idle",
+            roomCode: roomCode
+          });
+          students = nextStudents;
+
+          try {
+            window.localStorage.setItem("classroomscreen-room-students-v1", JSON.stringify(students));
+            window.localStorage.setItem("classroomscreen-student-id-v1", studentId);
+            window.localStorage.setItem("classroomscreen-student-name-v1", studentName);
+          } catch (error) {
+            console.error("Kunde inte spara elev", error);
+            showError("Ett fel uppstod. Försök igen.");
+            return;
+          }
+
+          // Broadcast student joined
+          try {
+            var channel = new BroadcastChannel("classroom-room-" + roomCode);
+            channel.postMessage({
+              type: "student-joined",
+              studentId: studentId,
+              studentName: studentName,
+              roomCode: roomCode,
+              status: "idle",
+              timestamp: joinedTimestamp
+            });
+            channel.close();
+          } catch (error) {
+            console.warn("BroadcastChannel not supported", error);
+          }
+
+          // Redirect to viewer
+          window.location.href = "viewer.html?room=" + roomCode + "&student=" + studentId;
+        });
+
+        function showError(message) {
+          errorMessage.textContent = message;
+          errorMessage.classList.add("show");
+
+          setTimeout(function() {
+            errorMessage.classList.remove("show");
+          }, 5000);
+        }
+      })();
+    </script>
+  </body>
+</html>
