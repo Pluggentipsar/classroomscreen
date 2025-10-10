@@ -19,7 +19,10 @@ class MediaLibraryUI {
     this.allowMultiple = allowMultiple;
     this.selectedItems = [];
     
-    if (!this.dialog) {
+    if (!this.dialog || !this.dialog.querySelector('.multi-select-confirm-btn')) {
+      if (this.dialog) {
+        this.dialog.remove();
+      }
       this.createDialog(title);
     }
     
