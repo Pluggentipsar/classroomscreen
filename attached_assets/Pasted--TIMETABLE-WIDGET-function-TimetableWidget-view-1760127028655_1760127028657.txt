@@ -1,0 +1,158 @@
+ ===================== TIMETABLE WIDGET =====================
+function TimetableWidget() {
+  // view state
+  const [mode, setMode] = useState<'day' | 'week'>('day');
+  const [dayIndex, setDayIndex] = useState(0); // 0..4 for Mon..Fri
+  const [highContrast, setHighContrast] = useState(false);
+  const [showSymbols, setShowSymbols] = useState(true);
+  const [picker, setPicker] = useState<{open:boolean; courseId:string | null}>({open:false, courseId:null});
+
+  // mock data
+  type Block = { id:string; start:string; end:string; courseId:string; room?:string };
+  type Course = { id:string; name:string; color:string; symbol?:string };
+  const courses: Course[] = [
+    { id:'swe', name:'Swedish', color:'#F97316', symbol:'https://raw.githubusercontent.com/ARASAAC/arasaac-icons/master/PNG/512/education/education_7.png' },
+    { id:'eng', name:'English', color:'#22C55E', symbol:'https://raw.githubusercontent.com/ARASAAC/arasaac-icons/master/PNG/512/education/education_5.png' },
+    { id:'math', name:'Math', color:'#6366F1', symbol:'https://raw.githubusercontent.com/ARASAAC/arasaac-icons/master/PNG/512/education/education_8.png' },
+    { id:'sci', name:'Science', color:'#06B6D4', symbol:'https://raw.githubusercontent.com/ARASAAC/arasaac-icons/master/PNG/512/science/science_8.png' },
+  ];
+  const byId = Object.fromEntries(courses.map(c=>[c.id,c] as const));
+
+  const week: Block[][] = [
+    // Mon
+    [
+      { id:'b1', start:'08:30', end:'09:20', courseId:'swe', room:'B12' },
+      { id:'b2', start:'09:30', end:'10:20', courseId:'eng', room:'C3' },
+      { id:'b3', start:'10:40', end:'11:30', courseId:'math', room:'M2' },
+    ],
+    // Tue
+    [
+      { id:'b4', start:'08:30', end:'09:20', courseId:'sci', room:'Lab' },
+      { id:'b5', start:'09:30', end:'10:20', courseId:'math', room:'M2' },
+      { id:'b6', start:'10:40', end:'11:30', courseId:'eng', room:'C3' },
+    ],
+    // Wed
+    [
+      { id:'b7', start:'08:30', end:'09:20', courseId:'swe', room:'B12' },
+      { id:'b8', start:'09:30', end:'10:20', courseId:'sci', room:'Lab' },
+    ],
+    // Thu
+    [
+      { id:'b9', start:'08:30', end:'09:20', courseId:'eng', room:'C3' },
+      { id:'b10', start:'09:30', end:'10:20', courseId:'swe', room:'B12' },
+      { id:'b11', start:'10:40', end:'11:30', courseId:'math', room:'M2' },
+    ],
+    // Fri
+    [
+      { id:'b12', start:'09:00', end:'09:50', courseId:'sci', room:'Lab' },
+      { id:'b13', start:'10:10', end:'11:00', courseId:'eng', room:'C3' },
+    ],
+  ];
+
+  // helpers
+  const parse = (hhmm:string)=>{ const [h,m]=hhmm.split(':').map(Number); return h*60+m; };
+  const nowMins = (()=>{ const d=new Date(); return d.getHours()*60 + d.getMinutes(); })();
+
+  const todayBlocks = week[dayIndex];
+  const currentIdx = todayBlocks.findIndex(b => parse(b.start) <= nowMins && parse(b.end) > nowMins);
+  const nextIdx = currentIdx === -1 ? todayBlocks.findIndex(b => parse(b.start) > nowMins) : currentIdx+1;
+
+  // actions
+  function openPicker(courseId:string){ setPicker({open:true, courseId}); }
+  function selectSymbol(url:string){
+    if(!picker.courseId) return;
+    const idx = courses.findIndex(c=>c.id===picker.courseId);
+    if(idx>=0){ courses[idx].symbol = url; }
+    setPicker({open:false, courseId:null});
+  }
+
+  const headerCls = highContrast ? 'ring-2 ring-black bg-white text-black' : '';
+
+  return (
+    <Card className={`w-[min(1100px,96vw)] ${headerCls}`}>
+      {/* Header */}
+      <div className="px-5 pt-4 pb-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 grid place-items-center rounded-lg bg-white/70 border border-white/40">
+            <CalendarDays className="h-4 w-4" />
+          </div>
+          <h2 className="text-sm font-medium tracking-wide uppercase text-slate-700">Schedule</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="bg-white/70 border border-white/40 rounded-xl p-1 flex text-sm">
+            <button onClick={()=>setMode('day')} className={`px-3 py-1.5 rounded-lg inline-flex items-center gap-1 ${mode==='day'?'bg-indigo-600 text-white':'text-slate-700 hover:bg-white'}`}><List className="h-4 w-4"/>Day</button>
+            <button onClick={()=>setMode('week')} className={`px-3 py-1.5 rounded-lg inline-flex items-center gap-1 ${mode==='week'?'bg-indigo-600 text-white':'text-slate-700 hover:bg-white'}`}><Grid className="h-4 w-4"/>Week</button>
+          </div>
+          <button onClick={()=>setShowSymbols(v=>!v)} className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 text-sm">{showSymbols? 'Hide symbols':'Show symbols'}</button>
+          <button onClick={()=>setHighContrast(v=>!v)} className={`h-9 px-3 rounded-xl text-sm ${highContrast?'bg-black text-white':'bg-white/80 hover:bg-white border border-white/40'}`}>High contrast</button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="p-5">
+        {mode==='day' ? (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <button className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 inline-flex items-center gap-2" onClick={()=>setDayIndex(i=> Math.max(0, i-1))}><ChevronLeft className="h-4 w-4"/>Prev</button>
+              <div className="text-sm text-slate-500">Mon–Fri mock data • Showing day {dayIndex+1}</div>
+              <button className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 inline-flex items-center gap-2" onClick={()=>setDayIndex(i=> Math.min(4, i+1))}>Next<ChevronRight className="h-4 w-4"/></button>
+            </div>
+            <div className="grid gap-3">
+              {todayBlocks.map((b, idx)=>{
+                const c = byId[b.courseId];
+                const isNow = idx === currentIdx;
+                const isNext = idx === nextIdx;
+                return (
+                  <div key={b.id} className={`rounded-2xl border border-black/10 bg-white/80 p-3 flex items-center gap-3 ${isNow?'ring-2 ring-indigo-500':''} ${isNext && !isNow ? 'ring-1 ring-cyan-400':''}`}>
+                    {showSymbols && (
+                      <div className="h-12 w-12 rounded-xl overflow-hidden bg-slate-100 ring-1 ring-black/10 shrink-0 grid place-items-center">
+                        {c.symbol ? (<img src={c.symbol} alt="symbol" className="w-full h-full object-contain"/>) : (<div className="text-xs text-slate-500">No symbol</div>)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-slate-900" style={{color:c.color}}>{c.name}</div>
+                      <div className="text-xs text-slate-500">{b.start}–{b.end} • Room {b.room || '-'} </div>
+                    </div>
+                    <button onClick={()=>openPicker(c.id)} className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 text-sm inline-flex items-center gap-2"><ImageIcon className="h-4 w-4"/>Set pictogram</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-5 gap-3">
+            {week.map((blocks, di)=> (
+              <div key={di} className="rounded-2xl border border-black/10 bg-white/70 p-2">
+                <div className="text-xs font-medium text-slate-600 mb-2">Day {di+1}</div>
+                <div className="grid gap-2">
+                  {blocks.map(b=>{
+                    const c = byId[b.courseId];
+                    return (
+                      <div key={b.id} className="rounded-xl p-2 border border-black/10 bg-white/90">
+                        <div className="flex items-center gap-2">
+                          {showSymbols && (
+                            <div className="h-8 w-8 rounded-lg overflow-hidden bg-slate-100 ring-1 ring-black/10 shrink-0">
+                              {c.symbol && <img src={c.symbol} alt="symbol" className="w-full h-full object-contain"/>}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold" style={{color:c.color}}>{c.name}</div>
+                            <div className="text-[11px] text-slate-500">{b.start}–{b.end} • {b.room || '-'}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {picker.open && (
+        <MediaPicker onClose={()=>setPicker({open:false, courseId:null})} onSelect={(url)=>selectSymbol(url)} />
+      )}
+    </Card>
+  );
+}

@@ -1285,56 +1285,719 @@
     "timetable": {
       title: "Schema",
       defaults: function () {
-        return { rows: ["08:30 – Matematik", "09:45 – Laboration", "11:30 – Lunch"] };
+        return {
+          mode: "day",
+          dayIndex: 0,
+          showSymbols: true,
+          highContrast: false,
+          editMode: false,
+          courses: [
+            { id: "swe", name: "Svenska", color: "#F97316", symbol: "" },
+            { id: "eng", name: "Engelska", color: "#22C55E", symbol: "" },
+            { id: "mat", name: "Matematik", color: "#3B82F6", symbol: "" },
+            { id: "idrt", name: "Idrott", color: "#EF4444", symbol: "" }
+          ],
+          week: [
+            [
+              { id: "b1", start: "08:30", end: "09:20", courseId: "swe", room: "B12" },
+              { id: "b2", start: "09:30", end: "10:20", courseId: "mat", room: "A5" },
+              { id: "b3", start: "10:30", end: "11:20", courseId: "eng", room: "C3" }
+            ],
+            [
+              { id: "b4", start: "08:30", end: "09:20", courseId: "mat", room: "A5" },
+              { id: "b5", start: "09:30", end: "10:20", courseId: "idrt", room: "Gym" },
+              { id: "b6", start: "10:30", end: "11:20", courseId: "swe", room: "B12" }
+            ],
+            [
+              { id: "b7", start: "08:30", end: "09:20", courseId: "eng", room: "C3" },
+              { id: "b8", start: "09:30", end: "10:20", courseId: "swe", room: "B12" },
+              { id: "b9", start: "10:30", end: "11:20", courseId: "mat", room: "A5" }
+            ],
+            [
+              { id: "b10", start: "08:30", end: "09:20", courseId: "idrt", room: "Gym" },
+              { id: "b11", start: "09:30", end: "10:20", courseId: "eng", room: "C3" },
+              { id: "b12", start: "10:30", end: "11:20", courseId: "swe", room: "B12" }
+            ],
+            [
+              { id: "b13", start: "08:30", end: "09:20", courseId: "mat", room: "A5" },
+              { id: "b14", start: "09:30", end: "10:20", courseId: "swe", room: "B12" },
+              { id: "b15", start: "10:30", end: "11:20", courseId: "idrt", room: "Gym" }
+            ]
+          ]
+        };
       },
       render: function (container, data, onChange) {
-        var rows = ensureArray(data && data.rows);
-        var list = createElement("div", "timetable-list");
-
-        function addRow(value) {
-          var input = document.createElement("input");
-          input.type = "text";
-          input.value = value || "";
-          input.placeholder = "Tid – Aktivitet";
-          input.addEventListener("input", function () {
+        if (data && data.rows) {
+          var migratedCourses = [];
+          var migratedBlocks = [];
+          var courseColors = ["#F97316", "#22C55E", "#3B82F6", "#EF4444", "#8B5CF6", "#EC4899", "#06B6D4"];
+          var colorIdx = 0;
+          var courseMap = {};
+          
+          for (var r = 0; r < data.rows.length; r += 1) {
+            var row = data.rows[r].trim();
+            var timeStr = "08:00";
+            var courseName = "Lektion";
+            
+            var timeMatch = row.match(/(\d{1,2}):(\d{2})/);
+            if (timeMatch) {
+              var hour = timeMatch[1].length === 1 ? "0" + timeMatch[1] : timeMatch[1];
+              timeStr = hour + ":" + timeMatch[2];
+              
+              var beforeTime = row.substring(0, timeMatch.index).replace(/[\s–\-]+$/, "").trim();
+              var afterTime = row.substring(timeMatch.index + timeMatch[0].length).replace(/^[\s–\-]+/, "").trim();
+              
+              if (beforeTime && afterTime) {
+                courseName = beforeTime + " – " + afterTime;
+              } else if (beforeTime) {
+                courseName = beforeTime;
+              } else if (afterTime) {
+                courseName = afterTime;
+              }
+            } else {
+              courseName = row || "Lektion";
+            }
+            
+            var courseId = courseName.toLowerCase().replace(/[^a-zåäö0-9]/g, "");
+            if (!courseId) {
+              courseId = "lektion" + (r + 1);
+            }
+            if (!courseMap[courseId]) {
+              courseMap[courseId] = {
+                id: courseId,
+                name: courseName,
+                color: courseColors[colorIdx % courseColors.length],
+                symbol: ""
+              };
+              migratedCourses.push(courseMap[courseId]);
+              colorIdx += 1;
+            }
+            
+            var startTime = timeStr;
+            var timeParts = startTime.split(":");
+            var startHour = parseInt(timeParts[0], 10);
+            var startMin = timeParts[1] || "00";
+            var endHour = startHour + 1;
+            var endTime = (endHour < 10 ? "0" : "") + endHour + ":" + startMin;
+            
+            migratedBlocks.push({
+              id: "b" + (r + 1),
+              start: startTime,
+              end: endTime,
+              courseId: courseId,
+              room: ""
+            });
+          }
+          
+          data = {
+            mode: "day",
+            dayIndex: 0,
+            showSymbols: true,
+            highContrast: false,
+            editMode: false,
+            courses: migratedCourses.length > 0 ? migratedCourses : [{ id: "old1", name: "Tom kurs", color: "#6366F1", symbol: "" }],
+            week: [migratedBlocks, [], [], [], []]
+          };
+        }
+        
+        var state = {
+          mode: ensureString(data && data.mode, "day"),
+          dayIndex: ensureNumber(data && data.dayIndex, 0),
+          showSymbols: data && data.showSymbols !== false,
+          highContrast: data && data.highContrast === true,
+          editMode: data && data.editMode === true,
+          courses: ensureArray(data && data.courses),
+          week: ensureArray(data && data.week)
+        };
+        
+        if (!state.courses.length) {
+          state.courses = [
+            { id: "swe", name: "Svenska", color: "#F97316", symbol: "" },
+            { id: "eng", name: "Engelska", color: "#22C55E", symbol: "" }
+          ];
+        }
+        
+        if (!state.week.length || state.week.length !== 5) {
+          state.week = [[], [], [], [], []];
+        }
+        
+        if (state.dayIndex < 0 || state.dayIndex > 4) {
+          state.dayIndex = 0;
+        }
+        
+        var dayNames = ["Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag"];
+        
+        function getCourse(courseId) {
+          for (var i = 0; i < state.courses.length; i += 1) {
+            if (state.courses[i].id === courseId) {
+              return state.courses[i];
+            }
+          }
+          return null;
+        }
+        
+        function parseTime(timeStr) {
+          var parts = timeStr.split(":");
+          if (parts.length === 2) {
+            var h = parseInt(parts[0], 10);
+            var m = parseInt(parts[1], 10);
+            if (!isNaN(h) && !isNaN(m)) {
+              return h * 60 + m;
+            }
+          }
+          return -1;
+        }
+        
+        function findCurrentAndNext(blocks) {
+          var now = new Date();
+          var currentMinutes = now.getHours() * 60 + now.getMinutes();
+          var currentIdx = -1;
+          var nextIdx = -1;
+          
+          for (var i = 0; i < blocks.length; i += 1) {
+            var startMin = parseTime(blocks[i].start);
+            var endMin = parseTime(blocks[i].end);
+            
+            if (startMin <= currentMinutes && currentMinutes < endMin) {
+              currentIdx = i;
+              if (i + 1 < blocks.length) {
+                nextIdx = i + 1;
+              }
+              break;
+            } else if (startMin > currentMinutes && nextIdx === -1) {
+              nextIdx = i;
+            }
+          }
+          
+          return { current: currentIdx, next: nextIdx };
+        }
+        
+        function renderBlock(block, isCompact, markers) {
+          var course = getCourse(block.courseId);
+          if (!course) {
+            return null;
+          }
+          
+          var blockEl = createElement("div", "timetable-block");
+          if (isCompact) {
+            blockEl.className += " timetable-block-compact";
+          }
+          
+          if (markers && markers.current === block) {
+            blockEl.className += " current";
+          } else if (markers && markers.next === block) {
+            blockEl.className += " next";
+          }
+          
+          if (state.showSymbols) {
+            var symbolDiv = createElement("div", "timetable-symbol");
+            if (course.symbol) {
+              var img = document.createElement("img");
+              img.src = course.symbol;
+              img.alt = course.name;
+              symbolDiv.appendChild(img);
+            } else {
+              var placeholder = createElement("div", "timetable-symbol-placeholder");
+              placeholder.textContent = "📚";
+              symbolDiv.appendChild(placeholder);
+            }
+            blockEl.appendChild(symbolDiv);
+          }
+          
+          var infoDiv = createElement("div", "timetable-course-info");
+          
+          var nameEl = createElement("div", "timetable-course-name");
+          nameEl.textContent = course.name;
+          nameEl.style.color = course.color;
+          infoDiv.appendChild(nameEl);
+          
+          var timeEl = createElement("div", "timetable-time");
+          timeEl.textContent = block.start + " - " + block.end;
+          infoDiv.appendChild(timeEl);
+          
+          if (block.room) {
+            var roomEl = createElement("div", "timetable-room");
+            roomEl.textContent = "Sal: " + block.room;
+            infoDiv.appendChild(roomEl);
+          }
+          
+          blockEl.appendChild(infoDiv);
+          return blockEl;
+        }
+        
+        function renderContent() {
+          clearChildren(container);
+          
+          var header = createElement("div", "timetable-header");
+          
+          var headerRow1 = createElement("div", "timetable-header-row");
+          
+          var title = createElement("div", "timetable-title");
+          title.innerHTML = "📅 SCHEMA";
+          headerRow1.appendChild(title);
+          
+          var modeToggle = createElement("div", "timetable-mode-toggle");
+          
+          var dayBtn = document.createElement("button");
+          dayBtn.type = "button";
+          dayBtn.textContent = "Dag";
+          if (state.mode === "day") {
+            dayBtn.setAttribute("data-active", "true");
+          }
+          dayBtn.addEventListener("click", function () {
+            if (state.mode !== "day") {
+              state.mode = "day";
+              if (typeof onChange === "function") {
+                onChange();
+              }
+              renderContent();
+            }
+          });
+          modeToggle.appendChild(dayBtn);
+          
+          var weekBtn = document.createElement("button");
+          weekBtn.type = "button";
+          weekBtn.textContent = "Vecka";
+          if (state.mode === "week") {
+            weekBtn.setAttribute("data-active", "true");
+          }
+          weekBtn.addEventListener("click", function () {
+            if (state.mode !== "week") {
+              state.mode = "week";
+              if (typeof onChange === "function") {
+                onChange();
+              }
+              renderContent();
+            }
+          });
+          modeToggle.appendChild(weekBtn);
+          
+          headerRow1.appendChild(modeToggle);
+          header.appendChild(headerRow1);
+          
+          var controlsDiv = createElement("div", "timetable-controls");
+          
+          var symbolsBtn = document.createElement("button");
+          symbolsBtn.type = "button";
+          symbolsBtn.className = "timetable-toggle-btn";
+          symbolsBtn.textContent = state.showSymbols ? "🖼️ Symboler: PÅ" : "🖼️ Symboler: AV";
+          if (state.showSymbols) {
+            symbolsBtn.setAttribute("data-active", "true");
+          }
+          symbolsBtn.addEventListener("click", function () {
+            state.showSymbols = !state.showSymbols;
             if (typeof onChange === "function") {
               onChange();
             }
+            renderContent();
           });
-          list.appendChild(input);
-        }
-
-        if (rows.length) {
-          for (var i = 0; i < rows.length; i += 1) {
-            addRow(rows[i]);
+          controlsDiv.appendChild(symbolsBtn);
+          
+          var contrastBtn = document.createElement("button");
+          contrastBtn.type = "button";
+          contrastBtn.className = "timetable-toggle-btn";
+          contrastBtn.textContent = "⚫ Hög kontrast";
+          if (state.highContrast) {
+            contrastBtn.setAttribute("data-active", "true");
           }
-        } else {
-          addRow("08:30 – Matematik");
-        }
-
-        var addButton = document.createElement("button");
-        addButton.type = "button";
-        addButton.textContent = "Lägg till rad";
-        addButton.addEventListener("click", function () {
-          addRow("");
-          if (typeof onChange === "function") {
-            onChange();
+          contrastBtn.addEventListener("click", function () {
+            state.highContrast = !state.highContrast;
+            if (typeof onChange === "function") {
+              onChange();
+            }
+            renderContent();
+          });
+          controlsDiv.appendChild(contrastBtn);
+          
+          var editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "timetable-edit-btn";
+          editBtn.textContent = state.editMode ? "✔️ Klar" : "✏️ Redigera";
+          editBtn.addEventListener("click", function () {
+            state.editMode = !state.editMode;
+            if (typeof onChange === "function") {
+              onChange();
+            }
+            renderContent();
+          });
+          controlsDiv.appendChild(editBtn);
+          
+          header.appendChild(controlsDiv);
+          container.appendChild(header);
+          
+          if (state.editMode) {
+            renderEditMode();
+          } else if (state.mode === "day") {
+            renderDayMode();
+          } else {
+            renderWeekMode();
           }
-        });
-
-        container.appendChild(list);
-        container.appendChild(addButton);
+        }
+        
+        function renderDayMode() {
+          var nav = createElement("div", "timetable-nav");
+          
+          var prevBtn = document.createElement("button");
+          prevBtn.type = "button";
+          prevBtn.className = "timetable-nav-btn";
+          prevBtn.innerHTML = "← Föregående";
+          prevBtn.disabled = state.dayIndex === 0;
+          prevBtn.addEventListener("click", function () {
+            if (state.dayIndex > 0) {
+              state.dayIndex -= 1;
+              if (typeof onChange === "function") {
+                onChange();
+              }
+              renderContent();
+            }
+          });
+          nav.appendChild(prevBtn);
+          
+          var dayName = createElement("div", "timetable-day-name");
+          dayName.textContent = dayNames[state.dayIndex];
+          nav.appendChild(dayName);
+          
+          var nextBtn = document.createElement("button");
+          nextBtn.type = "button";
+          nextBtn.className = "timetable-nav-btn";
+          nextBtn.innerHTML = "Nästa →";
+          nextBtn.disabled = state.dayIndex === 4;
+          nextBtn.addEventListener("click", function () {
+            if (state.dayIndex < 4) {
+              state.dayIndex += 1;
+              if (typeof onChange === "function") {
+                onChange();
+              }
+              renderContent();
+            }
+          });
+          nav.appendChild(nextBtn);
+          
+          container.appendChild(nav);
+          
+          var dayView = createElement("div", "timetable-day-view");
+          var blocks = state.week[state.dayIndex] || [];
+          var markers = findCurrentAndNext(blocks);
+          var currentBlock = markers.current >= 0 ? blocks[markers.current] : null;
+          var nextBlock = markers.next >= 0 ? blocks[markers.next] : null;
+          
+          for (var i = 0; i < blocks.length; i += 1) {
+            var blockEl = renderBlock(blocks[i], false, { current: currentBlock, next: nextBlock });
+            if (blockEl) {
+              dayView.appendChild(blockEl);
+            }
+          }
+          
+          if (!blocks.length) {
+            var emptyMsg = createElement("div", "timetable-time");
+            emptyMsg.textContent = "Inga lektioner denna dag";
+            emptyMsg.style.textAlign = "center";
+            emptyMsg.style.padding = "20px";
+            emptyMsg.style.opacity = "0.5";
+            dayView.appendChild(emptyMsg);
+          }
+          
+          container.appendChild(dayView);
+        }
+        
+        function renderWeekMode() {
+          var weekView = createElement("div", "timetable-week-view");
+          
+          for (var d = 0; d < 5; d += 1) {
+            var column = createElement("div", "timetable-week-column");
+            
+            var dayNameEl = createElement("div", "timetable-week-day-name");
+            dayNameEl.textContent = dayNames[d];
+            column.appendChild(dayNameEl);
+            
+            var blocks = state.week[d] || [];
+            for (var i = 0; i < blocks.length; i += 1) {
+              var blockEl = renderBlock(blocks[i], true, null);
+              if (blockEl) {
+                column.appendChild(blockEl);
+              }
+            }
+            
+            weekView.appendChild(column);
+          }
+          
+          container.appendChild(weekView);
+        }
+        
+        function renderEditMode() {
+          var editContainer = createElement("div", "timetable-edit-mode");
+          
+          var coursesSection = createElement("div", "timetable-courses-section");
+          var coursesTitle = createElement("h4", "timetable-section-title");
+          coursesTitle.textContent = "Kurser";
+          coursesSection.appendChild(coursesTitle);
+          
+          for (var i = 0; i < state.courses.length; i += 1) {
+            (function (course, idx) {
+              var item = createElement("div", "timetable-course-item");
+              
+              var colorInput = document.createElement("input");
+              colorInput.type = "color";
+              colorInput.className = "timetable-course-color";
+              colorInput.value = course.color;
+              colorInput.addEventListener("change", function () {
+                course.color = colorInput.value;
+                if (typeof onChange === "function") {
+                  onChange();
+                }
+              });
+              item.appendChild(colorInput);
+              
+              var inputs = createElement("div", "timetable-course-inputs");
+              
+              var nameInput = document.createElement("input");
+              nameInput.type = "text";
+              nameInput.value = course.name;
+              nameInput.placeholder = "Kursnamn";
+              nameInput.addEventListener("input", function () {
+                course.name = nameInput.value;
+                if (typeof onChange === "function") {
+                  onChange();
+                }
+              });
+              inputs.appendChild(nameInput);
+              
+              item.appendChild(inputs);
+              
+              var symbolBtn = document.createElement("button");
+              symbolBtn.type = "button";
+              symbolBtn.className = "timetable-symbol-btn";
+              symbolBtn.textContent = course.symbol ? "✔️ Symbol" : "📚 Symbol";
+              symbolBtn.addEventListener("click", function () {
+                if (typeof mediaLibraryUI !== "undefined") {
+                  mediaLibraryUI.open({
+                    title: "Välj symbol för " + course.name,
+                    allowMultiple: false,
+                    onSelect: function (item) {
+                      course.symbol = item.url || item.highResUrl || "";
+                      if (typeof onChange === "function") {
+                        onChange();
+                      }
+                      renderContent();
+                    }
+                  });
+                }
+              });
+              item.appendChild(symbolBtn);
+              
+              var removeBtn = document.createElement("button");
+              removeBtn.type = "button";
+              removeBtn.className = "timetable-remove-btn";
+              removeBtn.textContent = "✕";
+              removeBtn.addEventListener("click", function () {
+                state.courses.splice(idx, 1);
+                if (typeof onChange === "function") {
+                  onChange();
+                }
+                renderContent();
+              });
+              item.appendChild(removeBtn);
+              
+              coursesSection.appendChild(item);
+            })(state.courses[i], i);
+          }
+          
+          var addCourseBtn = document.createElement("button");
+          addCourseBtn.type = "button";
+          addCourseBtn.className = "timetable-add-btn";
+          addCourseBtn.textContent = "+ Lägg till kurs";
+          addCourseBtn.addEventListener("click", function () {
+            state.courses.push({
+              id: "course-" + Date.now(),
+              name: "Ny kurs",
+              color: "#6366F1",
+              symbol: ""
+            });
+            if (typeof onChange === "function") {
+              onChange();
+            }
+            renderContent();
+          });
+          coursesSection.appendChild(addCourseBtn);
+          
+          editContainer.appendChild(coursesSection);
+          
+          var scheduleSection = createElement("div", "timetable-schedule-section");
+          var scheduleTitle = createElement("h4", "timetable-section-title");
+          scheduleTitle.textContent = "Schema - " + dayNames[state.dayIndex];
+          scheduleSection.appendChild(scheduleTitle);
+          
+          var dayNav = createElement("div", "timetable-nav");
+          dayNav.style.marginBottom = "12px";
+          
+          var prevDayBtn = document.createElement("button");
+          prevDayBtn.type = "button";
+          prevDayBtn.className = "timetable-nav-btn";
+          prevDayBtn.innerHTML = "← Föreg dag";
+          prevDayBtn.disabled = state.dayIndex === 0;
+          prevDayBtn.addEventListener("click", function () {
+            if (state.dayIndex > 0) {
+              state.dayIndex -= 1;
+              renderContent();
+            }
+          });
+          dayNav.appendChild(prevDayBtn);
+          
+          var currentDay = createElement("span", "timetable-day-name");
+          currentDay.textContent = dayNames[state.dayIndex];
+          dayNav.appendChild(currentDay);
+          
+          var nextDayBtn = document.createElement("button");
+          nextDayBtn.type = "button";
+          nextDayBtn.className = "timetable-nav-btn";
+          nextDayBtn.innerHTML = "Nästa dag →";
+          nextDayBtn.disabled = state.dayIndex === 4;
+          nextDayBtn.addEventListener("click", function () {
+            if (state.dayIndex < 4) {
+              state.dayIndex += 1;
+              renderContent();
+            }
+          });
+          dayNav.appendChild(nextDayBtn);
+          
+          scheduleSection.appendChild(dayNav);
+          
+          var blocks = state.week[state.dayIndex] || [];
+          for (var b = 0; b < blocks.length; b += 1) {
+            (function (block, blockIdx) {
+              var blockItem = createElement("div", "timetable-course-item");
+              
+              var blockInputs = createElement("div", "timetable-course-inputs");
+              blockInputs.style.flexWrap = "wrap";
+              
+              var startInput = document.createElement("input");
+              startInput.type = "time";
+              startInput.value = block.start;
+              startInput.style.flexBasis = "80px";
+              startInput.addEventListener("change", function () {
+                block.start = startInput.value;
+                if (typeof onChange === "function") {
+                  onChange();
+                }
+              });
+              blockInputs.appendChild(startInput);
+              
+              var endInput = document.createElement("input");
+              endInput.type = "time";
+              endInput.value = block.end;
+              endInput.style.flexBasis = "80px";
+              endInput.addEventListener("change", function () {
+                block.end = endInput.value;
+                if (typeof onChange === "function") {
+                  onChange();
+                }
+              });
+              blockInputs.appendChild(endInput);
+              
+              var courseSelect = document.createElement("select");
+              courseSelect.style.flex = "1";
+              courseSelect.style.minWidth = "100px";
+              for (var c = 0; c < state.courses.length; c += 1) {
+                var option = document.createElement("option");
+                option.value = state.courses[c].id;
+                option.textContent = state.courses[c].name;
+                if (block.courseId === state.courses[c].id) {
+                  option.selected = true;
+                }
+                courseSelect.appendChild(option);
+              }
+              courseSelect.addEventListener("change", function () {
+                block.courseId = courseSelect.value;
+                if (typeof onChange === "function") {
+                  onChange();
+                }
+              });
+              blockInputs.appendChild(courseSelect);
+              
+              var roomInput = document.createElement("input");
+              roomInput.type = "text";
+              roomInput.value = block.room || "";
+              roomInput.placeholder = "Sal";
+              roomInput.style.flexBasis = "60px";
+              roomInput.addEventListener("input", function () {
+                block.room = roomInput.value;
+                if (typeof onChange === "function") {
+                  onChange();
+                }
+              });
+              blockInputs.appendChild(roomInput);
+              
+              blockItem.appendChild(blockInputs);
+              
+              var removeBlockBtn = document.createElement("button");
+              removeBlockBtn.type = "button";
+              removeBlockBtn.className = "timetable-remove-btn";
+              removeBlockBtn.textContent = "✕";
+              removeBlockBtn.addEventListener("click", function () {
+                state.week[state.dayIndex].splice(blockIdx, 1);
+                if (typeof onChange === "function") {
+                  onChange();
+                }
+                renderContent();
+              });
+              blockItem.appendChild(removeBlockBtn);
+              
+              scheduleSection.appendChild(blockItem);
+            })(blocks[b], b);
+          }
+          
+          var addBlockBtn = document.createElement("button");
+          addBlockBtn.type = "button";
+          addBlockBtn.className = "timetable-add-btn";
+          addBlockBtn.textContent = "+ Lägg till tidsblock";
+          addBlockBtn.addEventListener("click", function () {
+            if (!state.week[state.dayIndex]) {
+              state.week[state.dayIndex] = [];
+            }
+            state.week[state.dayIndex].push({
+              id: "block-" + Date.now(),
+              start: "08:00",
+              end: "09:00",
+              courseId: state.courses.length ? state.courses[0].id : "",
+              room: ""
+            });
+            if (typeof onChange === "function") {
+              onChange();
+            }
+            renderContent();
+          });
+          scheduleSection.appendChild(addBlockBtn);
+          
+          editContainer.appendChild(scheduleSection);
+          container.appendChild(editContainer);
+        }
+        
+        renderContent();
+        container._state = state;
       },
       save: function (widget) {
-        var inputs = widget.querySelectorAll(".timetable-list input");
-        var rows = [];
-        for (var i = 0; i < inputs.length; i += 1) {
-          var value = inputs[i].value.trim();
-          if (value) {
-            rows.push(value);
-          }
+        var content = widget.querySelector(".widget-content");
+        var state = content && content._state;
+        if (!state) {
+          return {
+            mode: "day",
+            dayIndex: 0,
+            showSymbols: true,
+            highContrast: false,
+            editMode: false,
+            courses: [],
+            week: [[], [], [], [], []]
+          };
         }
-        return { rows: rows };
+        return {
+          mode: ensureString(state.mode, "day"),
+          dayIndex: ensureNumber(state.dayIndex, 0),
+          showSymbols: state.showSymbols !== false,
+          highContrast: state.highContrast === true,
+          editMode: false,
+          courses: ensureArray(state.courses),
+          week: ensureArray(state.week)
+        };
       }
     },
     "poll": {
