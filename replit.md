@@ -123,11 +123,13 @@ The application is fully functional and running on Replit. It consists of:
 - Rum-baserad routing: host och viewers kopplas via rumskod
 - Meddelandetyper: join, sync-request, widget-control, widget-update, widgets-sync, screen-change, layout-reset, hand-raise
 - Automatisk roomCode/role injection i alla meddelanden
-- Host: Skapar LiveSyncClient vid rum-start, disconnectar vid stängning
-- Viewer: Ansluter automatiskt om aktivt rum finns i localStorage
+- Host: Skapar LiveSyncClient vid rum-start, broadcast:ar widgets när 'joined', disconnectar vid stängning
+- Viewer: Sparar active room till localStorage, ansluter som viewer, skickar sync-request
+- Initial widget sync: Host broadcast:ar när den får 'joined', viewer request:ar via sync-request
 - BroadcastChannel behålls som fallback för same-device synk
 - Viewer Lock Overlay: Visar "🔒 Styrs av läraren" när elevstyrning är av
 - CSS för .widget-viewer-lock: Semi-transparent overlay med blur-effekt
+- Debugging: Omfattande console.log för WebSocket events och widget broadcasts
 
 ## Running the Project
 

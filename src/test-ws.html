@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head><title>WebSocket Test</title></head>
+<body>
+<h1>WebSocket Test</h1>
+<div id="log"></div>
+<script>
+function log(msg) {
+  console.log(msg);
+  document.getElementById('log').innerHTML += msg + '<br>';
+}
+
+var wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+var wsUrl = wsProtocol + '//' + window.location.host;
+log('Connecting to: ' + wsUrl);
+
+var ws = new WebSocket(wsUrl);
+
+ws.onopen = function() {
+  log('✅ Connected!');
+  ws.send(JSON.stringify({
+    type: 'join',
+    roomCode: 'TEST123',
+    role: 'host'
+  }));
+  log('Sent join message');
+};
+
+ws.onmessage = function(e) {
+  log('📨 Received: ' + e.data);
+};
+
+ws.onerror = function(e) {
+  log('❌ Error: ' + e);
+};
+
+ws.onclose = function() {
+  log('Connection closed');
+};
+</script>
+</body>
+</html>

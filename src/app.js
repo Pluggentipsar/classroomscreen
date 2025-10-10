@@ -3887,12 +3887,15 @@
       }
 
       // Broadcast to students if room is active
-      if (!window.isViewerMode) {
+      if (!window.isViewerMode && liveSyncClient) {
         try {
-          var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
-          if (roomData) {
-            var room = JSON.parse(roomData);
-            broadcastAllWidgets(room.code);
+          if (liveSyncClient.isConnected) {
+            console.log("Broadcasting widget changes via LiveSync");
+            liveSyncClient.sendWidgetsSync();
+          } else {
+            // Mark that there are pending changes to broadcast when connected
+            console.log("LiveSync not connected yet, marking pending broadcast");
+            liveSyncClient.pendingBroadcast = true;
           }
         } catch (broadcastError) {
           console.warn("Could not broadcast widgets", broadcastError);
@@ -4815,6 +4818,7 @@
     this.reconnectDelay = 1000;
     this.isConnecting = false;
     this.isConnected = false;
+    this.pendingBroadcast = false; // Flag to broadcast widgets when connected
 
     /**
      * Connect to WebSocket server and join a room
@@ -4951,6 +4955,17 @@
           if (data.role === 'viewer') {
             // Request initial sync from host
             self.send({ type: 'sync-request' });
+          } else if (data.role === 'host') {
+            // Host joined - send initial widget snapshot to any connected viewers
+            console.log("Host joined, broadcasting initial widget state");
+            self.sendWidgetsSync();
+            
+            // Also broadcast if there were pending changes during connection
+            if (self.pendingBroadcast) {
+              console.log("Flushing pending broadcast");
+              self.sendWidgetsSync();
+              self.pendingBroadcast = false;
+            }
           }
           break;
 
@@ -5109,7 +5124,10 @@
    * Initialize LiveSync client if in an active room
    */
   function initLiveSync() {
+    console.log("initLiveSync() called, isViewerMode:", window.isViewerMode);
+    
     var roomCode = getActiveRoomCode();
+    console.log("getActiveRoomCode() returned:", roomCode);
     
     if (!roomCode) {
       console.log("No active room - LiveSync not initialized");
@@ -5124,8 +5142,10 @@
       var params = new URLSearchParams(window.location.search);
       meta.studentId = params.get('student') || 'student-' + Date.now();
       meta.studentName = params.get('name') || '';
+      console.log("Viewer meta:", meta);
     }
 
+    console.log("Creating LiveSyncClient with role:", role, "roomCode:", roomCode);
     liveSyncClient = new LiveSyncClient();
     liveSyncClient.connect(roomCode, role, meta);
     
@@ -5329,16 +5349,15 @@
             roomDialogActive.hidden = false;
           }
 
-          // Start broadcasting and connect to LiveSync
-          startRoomBroadcast(roomCode);
-          
-          // Initialize LiveSync for this room
+          // Initialize LiveSync for this room FIRST
           if (liveSyncClient) {
             liveSyncClient.disconnect();
           }
           liveSyncClient = new LiveSyncClient();
           liveSyncClient.connect(roomCode, 'host', {});
-          console.log("LiveSync connected for room:", roomCode);
+          console.log("LiveSync connecting for room:", roomCode);
+          
+          // Note: Widgets will be broadcast when viewers send sync-request
         } catch (error) {
           console.error("Could not start room", error);
           alert("Kunde inte starta rummet");
@@ -5599,8 +5618,13 @@
     }
 
     function startRoomBroadcast(roomCode) {
-      // Broadcast initial widget state
-      broadcastAllWidgets(roomCode);
+      // Broadcast initial widget state via LiveSync
+      if (liveSyncClient && liveSyncClient.isConnected) {
+        console.log("Broadcasting all widgets via LiveSync");
+        liveSyncClient.sendWidgetsSync();
+      } else {
+        console.warn("LiveSync not connected, cannot broadcast widgets");
+      }
     }
 
     // Listen for student updates
