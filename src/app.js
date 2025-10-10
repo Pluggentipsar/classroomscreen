@@ -945,6 +945,149 @@
           remaining: remaining
         };
       },
+      load: function (widget, data) {
+        var content = widget.querySelector(".widget-content");
+        var state = content && content._state;
+        if (!state) return;
+        
+        // Update state from synced data
+        if (data.minutes !== undefined) {
+          state.minutes = data.minutes;
+          state.duration = data.minutes * 60;
+          var lengthValue = content.querySelector(".timer-length-value");
+          if (lengthValue) {
+            lengthValue.textContent = data.minutes + " min";
+          }
+        }
+        if (data.alertType !== undefined) {
+          state.alertType = data.alertType;
+          var soundInput = content.querySelector(".toggle-switch-input");
+          var visualInput = content.querySelectorAll(".toggle-switch-input")[1];
+          if (soundInput && visualInput) {
+            if (data.alertType === "sound") {
+              soundInput.classList.add("active");
+              visualInput.classList.remove("active");
+            } else {
+              soundInput.classList.remove("active");
+              visualInput.classList.add("active");
+            }
+          }
+        }
+        if (data.remaining !== undefined) {
+          state.remaining = data.remaining;
+        }
+        
+        // Handle running state
+        var wasRunning = state.running;
+        var shouldBeRunning = data.running === true;
+        
+        if (shouldBeRunning && !wasRunning) {
+          // Start timer
+          state.running = true;
+          var startStop = content.querySelector("button[data-state]");
+          if (startStop) {
+            startStop.setAttribute("data-state", "stop");
+            startStop.innerHTML = "⏸ Pausa";
+          }
+          var display = content.querySelector(".big-digits");
+          var fillCircle = content.querySelector(".progress-ring-fill");
+          if (display) display.classList.remove("timer-pulse");
+          if (fillCircle) fillCircle.classList.remove("warning", "danger");
+          
+          // Clear any existing interval
+          if (state.interval) {
+            window.clearInterval(state.interval);
+          }
+          
+          // Start interval
+          state.interval = window.setInterval(function () {
+            state.remaining = Math.max(0, state.remaining - 1);
+            var m = Math.floor(state.remaining / 60);
+            var s = state.remaining % 60;
+            if (display) {
+              display.textContent = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+            }
+            
+            // Update progress ring
+            if (fillCircle) {
+              var circumference = 2 * Math.PI * 64;
+              var progress = state.duration > 0 ? state.remaining / state.duration : 0;
+              var offset = circumference * (1 - progress);
+              fillCircle.setAttribute("stroke-dashoffset", String(offset));
+              
+              // Add warning class for last 10 seconds
+              if (state.remaining <= 10 && state.remaining > 0) {
+                fillCircle.classList.add("warning");
+              } else {
+                fillCircle.classList.remove("warning");
+              }
+            }
+            
+            if (state.remaining === 0) {
+              state.running = false;
+              if (startStop) {
+                startStop.setAttribute("data-state", "start");
+                startStop.innerHTML = "▶ Starta";
+              }
+              if (display) display.classList.remove("timer-pulse");
+              if (fillCircle) fillCircle.classList.remove("warning", "danger");
+              if (state.interval) {
+                window.clearInterval(state.interval);
+                state.interval = null;
+              }
+              
+              if (state.alertType === "sound") {
+                try {
+                  new Audio("https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3").play();
+                } catch (error) {
+                  console.warn("Timer-ljud kunde inte spelas", error);
+                }
+              } else {
+                if (display) display.classList.add("timer-pulse");
+                if (fillCircle) fillCircle.classList.add("danger");
+              }
+            }
+          }, 1000);
+        } else if (!shouldBeRunning && wasRunning) {
+          // Stop timer
+          state.running = false;
+          var startStop = content.querySelector("button[data-state]");
+          if (startStop) {
+            startStop.setAttribute("data-state", "start");
+            startStop.innerHTML = "▶ Starta";
+          }
+          var display = content.querySelector(".big-digits");
+          var fillCircle = content.querySelector(".progress-ring-fill");
+          if (display) display.classList.remove("timer-pulse");
+          if (fillCircle) fillCircle.classList.remove("warning", "danger");
+          if (state.interval) {
+            window.clearInterval(state.interval);
+            state.interval = null;
+          }
+        }
+        
+        // Update display
+        var display = content.querySelector(".big-digits");
+        var fillCircle = content.querySelector(".progress-ring-fill");
+        var seconds = state.running ? state.remaining : state.duration;
+        var m = Math.floor(seconds / 60);
+        var s = seconds % 60;
+        if (display) {
+          display.textContent = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+        }
+        if (fillCircle) {
+          var circumference = 2 * Math.PI * 64;
+          var progress = state.duration > 0 ? state.remaining / state.duration : 0;
+          var offset = circumference * (1 - progress);
+          fillCircle.setAttribute("stroke-dashoffset", String(offset));
+          
+          if (state.remaining <= 10 && state.remaining > 0) {
+            fillCircle.classList.add("warning");
+          } else {
+            fillCircle.classList.remove("warning");
+          }
+        }
+      },
       destroy: function (widget) {
         var content = widget.querySelector(".widget-content");
         var state = content && content._state;
