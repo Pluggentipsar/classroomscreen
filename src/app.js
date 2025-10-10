@@ -3596,9 +3596,14 @@
           viewerControlButton.style.display = "none";
         }
       }
+      // Don't show lock overlay - just disable interactivity
+      // Students should be able to SEE the content, just not interact
       if (viewerLockOverlay) {
-        viewerLockOverlay.style.display = window.isViewerMode && !viewerControlEnabled ? "flex" : "none";
+        viewerLockOverlay.style.display = "none";
       }
+      // Update interactivity (disable buttons/inputs when locked)
+      updateViewerInteractivity(widget, viewerControlEnabled);
+      
       if (entry) {
         entry.viewerControlEnabled = viewerControlEnabled;
       }
