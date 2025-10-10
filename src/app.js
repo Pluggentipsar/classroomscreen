@@ -3540,8 +3540,8 @@
     viewerControlButton.type = "button";
     viewerControlButton.className = "widget-viewer-control-btn";
     viewerControlButton.setAttribute("data-enabled", viewerControlEnabled ? "true" : "false");
-    viewerControlButton.textContent = viewerControlEnabled ? "Elevstyrning p\u00e5" : "Elevstyrning av";
-    viewerControlButton.title = viewerControlEnabled ? "Elever kan styra denna widget" : "Elever kan inte styra denna widget";
+    viewerControlButton.innerHTML = '<span class="icon">👥</span>';
+    viewerControlButton.title = viewerControlEnabled ? "Elevstyrning på - Elever kan styra denna widget" : "Elevstyrning av - Endast lärare kan styra";
 
     var duplicateButton = document.createElement("button");
     duplicateButton.type = "button";
@@ -3564,8 +3564,8 @@
       widget.setAttribute("data-viewer-control", viewerControlEnabled ? "enabled" : "disabled");
       if (viewerControlButton) {
         viewerControlButton.setAttribute("data-enabled", viewerControlEnabled ? "true" : "false");
-        viewerControlButton.textContent = viewerControlEnabled ? "Elevstyrning p\u00e5" : "Elevstyrning av";
-        viewerControlButton.title = viewerControlEnabled ? "Elever kan styra denna widget" : "Elever kan inte styra denna widget";
+        viewerControlButton.innerHTML = '<span class="icon">👥</span>';
+        viewerControlButton.title = viewerControlEnabled ? "Elevstyrning på - Elever kan styra denna widget" : "Elevstyrning av - Endast lärare kan styra";
         if (window.isViewerMode) {
           viewerControlButton.style.display = "none";
         }
