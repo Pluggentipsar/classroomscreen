@@ -27,6 +27,18 @@ const mimeTypes = {
 };
 
 const server = http.createServer((req, res) => {
+  // API endpoint for Pexels API key
+  if (req.url === '/api/pexels-key') {
+    res.writeHead(200, { 
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache'
+    });
+    res.end(JSON.stringify({ 
+      apiKey: process.env.PEXELS_API_KEY || '' 
+    }));
+    return;
+  }
+
   // Remove query parameters from URL and leading slashes
   const urlWithoutQuery = req.url.split('?')[0];
   const cleanUrl = urlWithoutQuery.replace(/^\/+/, ''); // Remove leading slashes

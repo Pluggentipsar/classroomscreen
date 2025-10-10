@@ -3,7 +3,7 @@ const ARASAAC_STATIC_BASE = 'https://static.arasaac.org/pictograms';
 
 class ArasaacService {
   constructor() {
-    this.defaultLanguage = 'sv';
+    this.defaultLanguage = 'en';
     this.cache = new Map();
   }
 

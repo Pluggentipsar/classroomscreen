@@ -18,12 +18,15 @@ Classroomscreen is an interactive classroom management tool designed to create e
 
 ### Core Features
 1.  **Widget System**: Includes Timer, Clock, Poll, Randomizer, Sound Level, Music, Image, Text, Work Symbols, Traffic Light, Timetable, Presentation, Lesson Progress, Group Maker, Scoreboard, Hand Raise, YouTube, QR Code, Step-by-step instructions, and Critical Thinking Cards.
-2.  **Media Library**: Integrated symbol/pictogram library with ARASAAC API for educational communication symbols. Features include:
-    -   Real-time search of 40,000+ pictograms in Swedish
-    -   Favorites and recently used tracking
-    -   Custom collections for organizing symbols by subject (Matte, Svenska, etc.)
+2.  **Media Library**: Hybrid image/symbol library with dual sources:
+    -   **Pexels API**: Swedish-language photo search with 8,000+ curated photos for classroom use
+    -   **ARASAAC API**: 40,000+ educational pictograms/symbols (English search)
+    -   Dual-source tabs for switching between photos and pictograms
+    -   Favorites and recently used tracking across both sources
+    -   Custom collections for organizing images by subject (Matte, Svenska, etc.)
     -   Integration in Image and Presentation widgets via "Välj från bibliotek" button
     -   Glassmorphic dialog design with tabbed interface (Sök, Senaste, Favoriter, Samlingar)
+    -   Photographer attribution for Pexels photos
 3.  **Live Rooms**: Teachers can create rooms with unique codes for students to join, enabling real-time interaction and content synchronization.
 4.  **Background Customization**: Allows custom images or URLs for screen backgrounds.
 5.  **Screen Management**: Ability to save and load different classroom screen configurations.
@@ -42,11 +45,12 @@ Classroomscreen is an interactive classroom management tool designed to create e
     -   **Discreet Icons**: Replaced text with subtle icons for features like "Student Control" with visual feedback (gray for off, blue for on) and custom tooltips.
 
 ### Technical Implementation Details
--   **Media Library System**: A comprehensive symbol/pictogram management system with modular architecture:
-    -   **ARASAAC Service** (`arasaac-service.js`): REST API client for ARASAAC's 40,000+ pictograms with caching for performance. Supports search, best-search, new items, and by-ID lookups. Generates optimized image URLs with configurable resolution (300px, 500px, 2500px) and customization options (plural, color, action, skin tone, hair color).
-    -   **Media Storage** (`media-storage.js`): LocalStorage-based persistence layer managing favorites, recently used items (max 50), and user-created collections. Provides defensive parsing, deduplication, and import/export functionality.
-    -   **Media Library UI** (`media-library-ui.js`): Modal dialog with tabbed interface (Search, Recent, Favorites, Collections). Features real-time search with debouncing, grid-based item display, and integration buttons in Image and Presentation widgets. Glassmorphic design consistent with the application's visual language.
-    -   **Collections System**: Allows teachers to organize symbols into subject-based collections (e.g., "Matte", "Svenska"). Collections are stored locally with full CRUD operations and can contain items from multiple sources (future-ready for Pexels integration).
+-   **Media Library System**: A comprehensive hybrid image/symbol management system with modular architecture:
+    -   **Pexels Service** (`pexels-service.js`): REST API client for Pexels with Swedish locale support (`sv-SE`). Supports curated photos and keyword search with caching. Returns optimized image URLs (thumbnail, medium, large, original) with photographer attribution. API key managed securely via environment variables.
+    -   **ARASAAC Service** (`arasaac-service.js`): REST API client for ARASAAC's 40,000+ pictograms (English language due to Swedish unavailability) with caching for performance. Supports search, best-search, new items, and by-ID lookups. Generates optimized image URLs with configurable resolution (300px, 500px, 2500px) and customization options (plural, color, action, skin tone, hair color).
+    -   **Media Storage** (`media-storage.js`): LocalStorage-based persistence layer managing favorites, recently used items (max 50), and user-created collections. Supports items from both Pexels and ARASAAC sources with proper source tracking. Provides defensive parsing, deduplication, and import/export functionality.
+    -   **Media Library UI** (`media-library-ui.js`): Modal dialog with source-switching tabs (Pexels/ARASAAC) and view tabs (Search, Recent, Favorites, Collections). Features real-time search with debouncing and language-appropriate placeholders (Swedish for Pexels, English for ARASAAC). Grid-based item display with photographer credits for Pexels photos. Integration buttons in Image and Presentation widgets. Glassmorphic design consistent with the application's visual language.
+    -   **Collections System**: Allows teachers to organize images/symbols into subject-based collections (e.g., "Matte", "Svenska"). Collections are stored locally with full CRUD operations and support items from both Pexels and ARASAAC sources.
 -   **WebSocket Real-time Sync**: A WebSocket server (using the `ws` package) ensures real-time synchronization across devices.
     -   **Room-based Routing**: Host (teacher) and viewers (students) connect via a room code.
     -   **Message Types**: Standardized messages for joining, sync requests, widget control, updates, screen changes, layout resets, and hand-raises.
@@ -60,7 +64,9 @@ Classroomscreen is an interactive classroom management tool designed to create e
 -   **Localized Content**: `widgetNamesSwedish` object maps widget types to Swedish names for display.
 
 ## External Dependencies
--   **Node.js HTTP Server**: For serving static files and handling server-side logic.
+-   **Node.js HTTP Server**: For serving static files and handling server-side logic. Includes `/api/pexels-key` endpoint for secure API key delivery.
 -   **`ws` package**: Used for WebSocket server implementation to manage real-time communication.
--   **LocalStorage**: For client-side data persistence (e.g., high-contrast mode, recent widgets, active room for students).
+-   **Pexels API**: Free photo API with 200 requests/hour limit. Requires `PEXELS_API_KEY` environment variable.
+-   **ARASAAC API**: Free pictogram API with no authentication required. Public REST API.
+-   **LocalStorage**: For client-side data persistence (e.g., high-contrast mode, recent widgets, active room for students, media library favorites/collections).
 -   **BroadcastChannel API**: As a fallback for real-time synchronization on the same device.

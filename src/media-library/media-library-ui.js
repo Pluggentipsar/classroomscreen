@@ -2,6 +2,7 @@ class MediaLibraryUI {
   constructor() {
     this.dialog = null;
     this.currentView = 'search';
+    this.currentSource = 'pexels';
     this.searchResults = [];
     this.selectedItem = null;
     this.onSelectCallback = null;
@@ -21,7 +22,7 @@ class MediaLibraryUI {
     
     this.dialog.showModal();
     this.switchView('search');
-    this.loadNewPictograms();
+    this.loadDefaultContent();
     
     const searchInput = this.dialog.querySelector('#mediaLibrarySearch');
     if (searchInput) {
@@ -68,11 +69,19 @@ class MediaLibraryUI {
 
         <div class="media-library-content">
           <div class="search-view view-panel active" data-view="search">
+            <div class="search-source-tabs">
+              <button type="button" class="source-tab active" data-source="pexels">
+                📷 Foton (Svenska)
+              </button>
+              <button type="button" class="source-tab" data-source="arasaac">
+                🎨 Piktogram (English)
+              </button>
+            </div>
             <div class="search-bar">
               <input 
                 type="text" 
                 id="mediaLibrarySearch" 
-                placeholder="Sök efter symboler på svenska..."
+                placeholder="Sök efter bilder på svenska..."
                 autocomplete="off"
               />
               <button type="button" class="clear-search-btn" style="display: none;">×</button>
@@ -138,6 +147,13 @@ class MediaLibraryUI {
       });
     });
     
+    this.dialog.querySelectorAll('.source-tab').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const source = e.currentTarget.dataset.source;
+        this.switchSource(source);
+      });
+    });
+    
     const searchInput = this.dialog.querySelector('#mediaLibrarySearch');
     searchInput.addEventListener('input', (e) => this.handleSearch(e.target.value));
     
@@ -146,6 +162,7 @@ class MediaLibraryUI {
       searchInput.value = '';
       clearSearchBtn.style.display = 'none';
       this.clearSearchResults();
+      this.loadDefaultContent();
     });
     
     this.dialog.querySelector('.clear-recent-btn').addEventListener('click', () => {
@@ -184,6 +201,27 @@ class MediaLibraryUI {
     }
   }
 
+  switchSource(source) {
+    this.currentSource = source;
+    
+    this.dialog.querySelectorAll('.source-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.source === source);
+    });
+    
+    const searchInput = this.dialog.querySelector('#mediaLibrarySearch');
+    if (source === 'pexels') {
+      searchInput.placeholder = 'Sök efter bilder på svenska...';
+    } else {
+      searchInput.placeholder = 'Search for pictograms in English...';
+    }
+    
+    if (searchInput.value.trim()) {
+      this.handleSearch(searchInput.value);
+    } else {
+      this.loadDefaultContent();
+    }
+  }
+
   handleSearch(query) {
     const clearBtn = this.dialog.querySelector('.clear-search-btn');
     clearBtn.style.display = query.length > 0 ? 'block' : 'none';
@@ -194,7 +232,7 @@ class MediaLibraryUI {
     
     if (query.trim().length < 2) {
       this.clearSearchResults();
-      this.loadNewPictograms();
+      this.loadDefaultContent();
       return;
     }
     
@@ -203,7 +241,12 @@ class MediaLibraryUI {
     this.searchTimeout = setTimeout(async () => {
       this.showLoading(true);
       
-      const results = await arasaacService.searchPictograms(query, 'sv');
+      let results = [];
+      if (this.currentSource === 'pexels') {
+        results = await pexelsService.searchPhotos(query, 'sv', 30);
+      } else {
+        results = await arasaacService.searchPictograms(query, 'en');
+      }
       
       if (this.currentQuery === query) {
         this.displaySearchResults(results);
@@ -212,9 +255,16 @@ class MediaLibraryUI {
     }, 300);
   }
 
-  async loadNewPictograms() {
+  async loadDefaultContent() {
     this.showLoading(true);
-    const results = await arasaacService.getNewPictograms(24, 'sv');
+    let results = [];
+    
+    if (this.currentSource === 'pexels') {
+      results = await pexelsService.getCuratedPhotos(30);
+    } else {
+      results = await arasaacService.getNewPictograms(24, 'en');
+    }
+    
     this.displaySearchResults(results);
     this.showLoading(false);
   }
@@ -255,6 +305,7 @@ class MediaLibraryUI {
   createItemCard(item) {
     const isFav = mediaStorage.isFavorite(item.id, item.source);
     const keywords = item.keywords?.slice(0, 3).join(', ') || '';
+    const photographer = item.photographer ? `<div class="media-item-credit">📷 ${item.photographer}</div>` : '';
     
     return `
       <div class="media-item" data-id="${item.id}" data-source="${item.source}">
@@ -263,6 +314,7 @@ class MediaLibraryUI {
         </div>
         <div class="media-item-info">
           <div class="media-item-keywords">${keywords}</div>
+          ${photographer}
           <div class="media-item-actions">
             <button type="button" class="favorite-btn ${isFav ? 'active' : ''}" 
                     title="${isFav ? 'Ta bort från favoriter' : 'Lägg till i favoriter'}">
