@@ -218,6 +218,13 @@ The application is fully functional and running on Replit. It consists of:
   - Ctrl/Cmd+Arrow keys i edit mode
 - Elever ser vilken slide läraren visar i realtid
 
+**Viewer-lock overlay fix:**
+- Tog bort overlay som täckte hela widgeten när den var låst
+- Elever kan nu SE widget-innehåll (t.ex. timer tickar ner) även när låst
+- Knappar/inputs är disabled när viewerControlEnabled = false
+- Elever kan INTE klicka på knappar eller redigera innehåll när låst
+- Läraren kontrollerar via 👥-knappen om elever kan interagera eller bara se
+
 ## Running the Project
 
 ### Development
