@@ -16,6 +16,7 @@
   var backgroundUrlButton = document.getElementById("backgroundUrlAddBtn");
   var backgroundFileInput = document.getElementById("backgroundFileInput");
   var backgroundFileButton = document.getElementById("backgroundFileButton");
+  var backgroundLibraryButton = document.getElementById("backgroundLibraryButton");
   var backgroundMessage = document.getElementById("backgroundMessage");
   var moreGrid = document.getElementById("moreGrid");
   var launcherOverlay = document.getElementById("launcherOverlay");
@@ -550,6 +551,31 @@
         if (event.key === "Enter") {
           stopEvent(event);
           handleBackgroundUrlSubmit();
+        }
+      });
+    }
+    if (backgroundLibraryButton) {
+      backgroundLibraryButton.addEventListener("click", function () {
+        if (typeof mediaLibraryUI !== "undefined") {
+          mediaLibraryUI.open({
+            title: "Välj bakgrundsbild",
+            allowMultiple: false,
+            onSelect: function(item) {
+              var imageUrl = item.url || item.highResUrl;
+              var label = item.alt || item.name || "Bakgrund från bibliotek";
+              var entry = {
+                id: generateId("background"),
+                label: label,
+                url: imageUrl,
+                custom: true
+              };
+              if (addCustomBackgroundEntry(entry)) {
+                showBackgroundMessage('Bakgrunden "' + label + '" lades till.', "info");
+              }
+            }
+          });
+        } else {
+          showBackgroundMessage("Mediabiblioteket kunde inte laddas.", "error");
         }
       });
     }
