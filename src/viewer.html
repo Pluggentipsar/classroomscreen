@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lektion – Classroomscreen</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      /* Viewer-specific styles */
+      .viewer-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: var(--surface-strong);
+        backdrop-filter: blur(10px);
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 10000;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .viewer-info {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        color: white;
+      }
+
+      .viewer-room-code {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: 1px;
+      }
+
+      .viewer-student-name {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+
+      .viewer-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .hand-raise-btn {
+        padding: 10px 20px;
+        background: #ffc107;
+        color: #000;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .hand-raise-btn:hover {
+        background: #ffb300;
+        transform: translateY(-2px);
+      }
+
+      .hand-raise-btn.active {
+        background: #4caf50;
+        color: white;
+        animation: pulse 1s infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+
+      .leave-btn {
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .leave-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .viewer-workspace {
+        margin-top: 72px;
+        min-height: calc(100vh - 72px);
+      }
+
+      .viewer-message {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--surface-strong);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        z-index: 10001;
+        display: none;
+        animation: slideUp 0.3s ease;
+      }
+
+      .viewer-message.show {
+        display: block;
+      }
+
+      @keyframes slideUp {
+        from {
+          transform: translateX(-50%) translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(-50%) translateY(0);
+          opacity: 1;
+        }
+      }
+
+      /* Hide toolbar and header in viewer mode */
+      .toolbar,
+      .app-header,
+      .status-bar {
+        display: none !important;
+      }
+
+      .app-shell {
+        grid-template-rows: 0 1fr 0 0 !important;
+      }
+
+      .widget .widget-controls {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="viewer-header">
+      <div class="viewer-info">
+        <span class="viewer-room-code" id="viewerRoomCode">XXXXXX</span>
+        <span class="viewer-student-name" id="viewerStudentName">👤 Elev</span>
+      </div>
+      <div class="viewer-actions">
+        <button class="hand-raise-btn" id="handRaiseBtn">
+          <span>✋</span>
+          <span id="handRaiseText">Räck upp handen</span>
+        </button>
+        <button class="leave-btn" id="leaveBtn">Lämna lektion</button>
+      </div>
+    </div>
+
+    <div class="viewer-message" id="viewerMessage"></div>
+
+    <div class="app-shell">
+      <main class="workspace viewer-workspace" id="workspace">
+        <div class="background-overlay" id="backgroundOverlay"></div>
+        <div class="widget-layer" id="widgetLayer"></div>
+      </main>
+    </div>
+
+    <script>
+      console.log("=== VIEWER.HTML SCRIPT 1 START ===");
+      // Set viewer mode BEFORE loading app.js
+      (function () {
+        "use strict";
+
+        // Get URL parameters
+        var urlParams = new URLSearchParams(window.location.search);
+        var roomCode = urlParams.get("room");
+        var studentId = urlParams.get("student");
+
+        console.log("URL params - roomCode:", roomCode, "studentId:", studentId);
+
+        if (!roomCode || !studentId) {
+          console.log("Missing params, redirecting to join.html");
+          window.location.href = "join.html";
+          return;
+        }
+
+        // Set viewer mode globally BEFORE app.js loads
+        console.log("Setting window.isViewerMode = true");
+        window.isViewerMode = true;
+        window.viewerStudentId = studentId;
+        window.viewerRoomCode = roomCode;
+        console.log("window.isViewerMode is now:", window.isViewerMode);
+      })();
+      console.log("=== VIEWER.HTML SCRIPT 1 END, window.isViewerMode:", window.isViewerMode, "===");
+    </script>
+
+    <script src="app.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        // Get URL parameters
+        var urlParams = new URLSearchParams(window.location.search);
+        var roomCode = urlParams.get("room");
+        var studentId = urlParams.get("student");
+
+        if (!roomCode || !studentId) {
+          window.location.href = "join.html";
+          return;
+        }
+
+        // Wait for app.js to fully load
+        window.addEventListener("load", function() {
+          console.log("Window loaded, window.syncAllWidgets:", typeof window.syncAllWidgets);
+
+          // Get student info
+          var studentName = "";
+          try {
+            studentName = window.localStorage.getItem("classroomscreen-student-name-v1") || "Elev";
+          } catch (error) {
+            console.error("Could not load student name", error);
+          }
+
+          // Update UI
+          var roomCodeEl = document.getElementById("viewerRoomCode");
+          if (roomCodeEl) {
+            roomCodeEl.textContent = roomCode;
+          }
+
+          var studentNameEl = document.getElementById("viewerStudentName");
+          if (studentNameEl) {
+            studentNameEl.textContent = "👤 " + studentName;
+          }
+
+        // Hand raise functionality
+        var handRaised = false;
+        var handRaiseBtn = document.getElementById("handRaiseBtn");
+        var handRaiseText = document.getElementById("handRaiseText");
+
+        if (handRaiseBtn) {
+          handRaiseBtn.addEventListener("click", function() {
+            handRaised = !handRaised;
+
+            if (handRaised) {
+              handRaiseBtn.classList.add("active");
+              handRaiseText.textContent = "Sänk handen";
+              showMessage("Din hand är uppe! ✋");
+            } else {
+              handRaiseBtn.classList.remove("active");
+              handRaiseText.textContent = "Räck upp handen";
+              showMessage("Hand sänkt");
+            }
+
+            // Update student in storage
+            updateHandRaise(studentId, handRaised);
+
+            // Broadcast to teacher
+            try {
+              var channel = new BroadcastChannel("classroom-room-" + roomCode);
+              channel.postMessage({
+                type: "hand-raise",
+                studentId: studentId,
+                raised: handRaised,
+                studentName: studentName,
+                roomCode: roomCode,
+                timestamp: new Date().toISOString()
+              });
+              channel.close();
+            } catch (error) {
+              console.warn("BroadcastChannel not supported", error);
+            }
+          });
+        }
+
+        // Leave button
+        var leaveBtn = document.getElementById("leaveBtn");
+        if (leaveBtn) {
+          leaveBtn.addEventListener("click", function() {
+            if (confirm("Är du säker på att du vill lämna lektionen?")) {
+              // Remove student from room
+              removeStudent(studentId);
+              try {
+                var leaveChannel = new BroadcastChannel("classroom-room-" + roomCode);
+                leaveChannel.postMessage({
+                  type: "student-left",
+                  studentId: studentId,
+                  roomCode: roomCode,
+                  timestamp: new Date().toISOString()
+                });
+                leaveChannel.close();
+              } catch (error) {
+                console.warn("BroadcastChannel not supported", error);
+              }
+              window.location.href = "join.html";
+            }
+          });
+        }
+
+        function updateHandRaise(studentId, raised) {
+          var students = [];
+          try {
+            var studentsData = window.localStorage.getItem("classroomscreen-room-students-v1");
+            if (studentsData) {
+              students = JSON.parse(studentsData);
+            }
+          } catch (error) {
+            console.error("Could not read students", error);
+            students = [];
+          }
+
+          var changed = false;
+          var found = false;
+          for (var i = 0; i < students.length; i += 1) {
+            var entry = students[i];
+            if (!entry || entry.id !== studentId) {
+              continue;
+            }
+            if (entry.roomCode && entry.roomCode !== roomCode) {
+              continue;
+            }
+            entry.roomCode = roomCode;
+            entry.handRaised = raised;
+            entry.status = raised ? "raised" : "idle";
+            entry.lastChange = new Date().toISOString();
+            students[i] = entry;
+            changed = true;
+            found = true;
+            break;
+          }
+
+          if (!found) {
+            students.push({
+              id: studentId,
+              name: studentName,
+              roomCode: roomCode,
+              joinedAt: new Date().toISOString(),
+              lastChange: new Date().toISOString(),
+              handRaised: raised,
+              status: raised ? "raised" : "idle"
+            });
+            changed = true;
+          }
+
+          if (!changed) {
+            return;
+          }
+
+          try {
+            window.localStorage.setItem("classroomscreen-room-students-v1", JSON.stringify(students));
+          } catch (error) {
+            console.error("Could not update student", error);
+          }
+        }
+
+        function removeStudent(studentId) {
+          var students = [];
+          try {
+            var studentsData = window.localStorage.getItem("classroomscreen-room-students-v1");
+            if (studentsData) {
+              students = JSON.parse(studentsData);
+            }
+          } catch (error) {
+            console.error("Could not read students", error);
+            return;
+          }
+
+          var filtered = [];
+          var changed = false;
+          for (var i = 0; i < students.length; i += 1) {
+            var entry = students[i];
+            if (!entry) { continue; }
+            if (entry.id === studentId && (!entry.roomCode || entry.roomCode === roomCode)) {
+              changed = true;
+              continue;
+            }
+            filtered.push(entry);
+          }
+
+          if (!changed) {
+            return;
+          }
+
+          try {
+            window.localStorage.setItem("classroomscreen-room-students-v1", JSON.stringify(filtered));
+          } catch (error) {
+            console.error("Could not update students", error);
+          }
+        }
+
+        function showMessage(text) {
+          var messageEl = document.getElementById("viewerMessage");
+          if (!messageEl) return;
+
+          messageEl.textContent = text;
+          messageEl.classList.add("show");
+
+          setTimeout(function() {
+            messageEl.classList.remove("show");
+          }, 3000);
+        }
+
+        // Load the current room state
+        window.addEventListener("DOMContentLoaded", function() {
+          try {
+            var roomData = window.localStorage.getItem("classroomscreen-active-room-v1");
+            if (roomData) {
+              var room = JSON.parse(roomData);
+
+              if (room.code !== roomCode) {
+                alert("Rummet finns inte längre");
+                window.location.href = "join.html";
+                return;
+              }
+
+              // Load the current screen/lesson
+              if (room.lessonId) {
+                // This will be called once app.js is loaded
+                setTimeout(function() {
+                  if (window.loadLessonPackage) {
+                    window.loadLessonPackage(room.lessonId, room.screenIndex);
+                  }
+                }, 500);
+              } else if (room.screenId) {
+                setTimeout(function() {
+                  if (window.loadScreen) {
+                    window.loadScreen(room.screenId);
+                  }
+                }, 500);
+              }
+            } else {
+              alert("Rummet finns inte");
+              window.location.href = "join.html";
+            }
+          } catch (error) {
+            console.error("Could not load room", error);
+            alert("Ett fel uppstod");
+            window.location.href = "join.html";
+          }
+        });
+
+          // Listen for room updates
+          console.log("Setting up BroadcastChannel, window.syncAllWidgets:", !!window.syncAllWidgets);
+          try {
+            var syncChannel = new BroadcastChannel("classroom-room-" + roomCode);
+
+            syncChannel.onmessage = function(event) {
+              var data = event.data;
+              console.log("Viewer received message:", data.type, data);
+
+              if (data.type === "screen-change") {
+                showMessage("Läraren bytte screen...");
+
+                // These will be available from app.js
+                if (data.lessonId && data.screenIndex !== undefined) {
+                  if (window.loadLessonPackage) {
+                    window.loadLessonPackage(data.lessonId, data.screenIndex);
+                  }
+                } else if (data.screenId) {
+                  if (window.loadScreen) {
+                    window.loadScreen(data.screenId);
+                  }
+                }
+              } else if (data.type === "widgets-sync") {
+                // Sync all widgets from teacher
+                console.log("widgets-sync received, window.syncAllWidgets exists:", !!window.syncAllWidgets);
+                if (window.syncAllWidgets) {
+                  window.syncAllWidgets(data);
+                } else {
+                  console.error("window.syncAllWidgets not available!");
+                }
+              } else if (data.type === "widget-control") {
+                if (window.updateWidgetFromSync) {
+                  window.updateWidgetFromSync(data.widgetId, data.widgetType, { controlEnabled: data.controlEnabled });
+                }
+              } else if (data.type === "layout-reset") {
+                if (window.resetViewerLayoutState) {
+                  window.resetViewerLayoutState();
+                }
+                showMessage("L\u00e4raren \u00e5terst\u00e4llde layouten");
+              } else if (data.type === "widget-update") {
+                // Update widget state
+                if (window.updateWidgetFromSync) {
+                  window.updateWidgetFromSync(data.widgetId, data.widgetType, data.widgetData);
+                }
+              } else if (data.type === "room-closed") {
+                alert("Lektionen har avslutats av läraren");
+                window.location.href = "join.html";
+              }
+            };
+          } catch (error) {
+            console.warn("BroadcastChannel not supported", error);
+            showMessage("⚠️ Realtidssynkning fungerar inte i denna webbläsare");
+          }
+        }); // End of window.addEventListener("load")
+      })();
+    </script>
+  </body>
+</html>
+
