@@ -47,7 +47,17 @@ Classroomscreen is an interactive classroom management tool designed to create e
 6.  **Background Customization**: Allows custom images or URLs for screen backgrounds.
 7.  **Screen Management**: Ability to save and load different classroom screen configurations.
 8.  **Student Interaction**: Students can raise hands in viewer mode, and teachers can manage student lists and their interaction permissions.
-9.  **Responsive Design**: UI/UX is optimized for both mobile and desktop.
+9.  **Lesson Management System**: Comprehensive lesson planning and delivery system with:
+    -   **Screen Library**: Create and manage reusable screens (saved configurations) with names and descriptions
+    -   **Lesson Builder**: Compose screens into sequential lessons with drag-and-drop ordering
+    -   **Main Screen**: Designate a primary screen that acts as the lesson homepage
+    -   **Arrow Key Navigation**: Keyboard navigation (← → for prev/next screen, ↑ for main screen, ↓ for quick nav overlay)
+    -   **Quick Navigation Overlay**: Visual grid showing all lesson screens for instant jumping
+    -   **Lesson Indicator**: Progress bar and position display (e.g., "Screen 2 av 5")
+    -   **Real-time Sync**: Screen changes automatically sync to all connected student devices
+    -   **Lesson Management**: Save, load, edit, duplicate, and delete complete lessons
+    -   **Reusability**: Individual screens can be reused across multiple lessons
+10. **Responsive Design**: UI/UX is optimized for both mobile and desktop.
 
 ### UI/UX and Design Decisions
 -   **Modern Aesthetics**: Utilizes "glass card" effects, improved backdrop filters, and larger border-radius for a contemporary look.
@@ -77,6 +87,16 @@ Classroomscreen is an interactive classroom management tool designed to create e
     -   Content interaction is controlled by the teacher via a "Student Control" button; when disabled, an overlay appears, and content controls are locked for students.
     -   When enabled, students can interact with widget content, and their changes are broadcast to the teacher.
 -   **Widget Creation Sync**: New widgets created by the teacher appear in real-time on student screens without requiring a page refresh.
+-   **Lesson Management System**: Complete lesson planning and delivery infrastructure:
+    -   **Data Model**: Lessons stored in localStorage with structure `{id, name, mainScreenId, screenSequence[], currentIndex}`
+    -   **Screen Library**: Enhanced screen storage with description metadata for better organization and searchability
+    -   **Lesson Builder UI**: Modal interface for composing lessons with screen selection from library, drag-and-drop reordering (↑↓ buttons), and main screen designation
+    -   **Navigation System**: `navigateLesson()` function handles arrow key events (←→ for prev/next, ↑ for main, ↓ for overlay) with automatic screen loading and WebSocket sync
+    -   **Quick Navigation**: Overlay dialog showing visual grid of all lesson screens with one-click jumping
+    -   **Lesson Indicator**: Real-time progress display showing "Screen X av Y" with visual progress bar
+    -   **WebSocket Integration**: Screen changes in lessons automatically broadcast to all connected students via `sendScreenChange()` with lesson context
+    -   **Persistence**: Full CRUD operations (create, read, update, delete) for both screens and lessons with localStorage backing
+    -   **Reusability**: Screens can be referenced in multiple lessons without duplication
 -   **Localized Content**: `widgetNamesSwedish` object maps widget types to Swedish names for display.
 
 ## External Dependencies
