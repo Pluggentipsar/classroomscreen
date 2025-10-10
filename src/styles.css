@@ -4140,7 +4140,7 @@ body {
 }
 
 .media-item-select-btn {
-  background: var(--primary) !important;
+  background: #3F51B5 !important;
   color: white !important;
   font-weight: 500 !important;
   display: flex !important;
@@ -4148,11 +4148,13 @@ body {
   justify-content: center !important;
   height: auto !important;
   opacity: 1 !important;
+  min-height: 32px !important;
 }
 
 .media-item-select-btn:hover {
-  background: #3949AB !important;
+  background: #303F9F !important;
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(63, 81, 181, 0.3);
 }
 
 .favorite-btn.active {
