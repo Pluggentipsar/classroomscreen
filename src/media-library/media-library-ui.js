@@ -5,9 +5,11 @@ class MediaLibraryUI {
     this.currentSource = 'pexels';
     this.searchResults = [];
     this.selectedItem = null;
+    this.selectedItems = [];
     this.onSelectCallback = null;
     this.searchTimeout = null;
     this.currentQuery = '';
+    this.allowMultiple = false;
   }
 
   open(options = {}) {
@@ -15,11 +17,13 @@ class MediaLibraryUI {
     
     this.onSelectCallback = onSelect;
     this.allowMultiple = allowMultiple;
+    this.selectedItems = [];
     
     if (!this.dialog) {
       this.createDialog(title);
     }
     
+    this.updateMultiSelectButton();
     this.dialog.showModal();
     this.switchView('search');
     this.loadDefaultContent();
@@ -45,6 +49,9 @@ class MediaLibraryUI {
       <div class="media-library-container">
         <header class="media-library-header">
           <h2>${title}</h2>
+          <button type="button" class="multi-select-confirm-btn" style="display: none;">
+            Lägg till valda (<span class="selected-count">0</span>)
+          </button>
           <button type="button" class="close-btn" aria-label="Stäng">×</button>
         </header>
         
@@ -139,6 +146,15 @@ class MediaLibraryUI {
 
   attachEventListeners() {
     this.dialog.querySelector('.close-btn').addEventListener('click', () => this.close());
+    
+    const confirmBtn = this.dialog.querySelector('.multi-select-confirm-btn');
+    confirmBtn.addEventListener('click', () => {
+      if (this.selectedItems.length > 0 && this.onSelectCallback) {
+        this.selectedItems.forEach(item => mediaStorage.addToRecent(item));
+        this.onSelectCallback(this.selectedItems);
+        this.close();
+      }
+    });
     
     this.dialog.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -331,13 +347,41 @@ class MediaLibraryUI {
   }
 
   selectItem(item) {
-    mediaStorage.addToRecent(item);
-    
-    if (this.onSelectCallback) {
-      this.onSelectCallback(item);
+    if (this.allowMultiple) {
+      const index = this.selectedItems.findIndex(i => i.id === item.id && i.source === item.source);
+      if (index >= 0) {
+        this.selectedItems.splice(index, 1);
+      } else {
+        this.selectedItems.push(item);
+      }
+      this.updateMultiSelectButton();
+      this.updateItemSelection();
+    } else {
+      mediaStorage.addToRecent(item);
+      if (this.onSelectCallback) {
+        this.onSelectCallback(item);
+      }
+      this.close();
     }
-    
-    this.close();
+  }
+
+  updateMultiSelectButton() {
+    const btn = this.dialog?.querySelector('.multi-select-confirm-btn');
+    const count = this.dialog?.querySelector('.selected-count');
+    if (btn && count) {
+      btn.style.display = this.allowMultiple ? 'block' : 'none';
+      count.textContent = this.selectedItems.length;
+      btn.disabled = this.selectedItems.length === 0;
+    }
+  }
+
+  updateItemSelection() {
+    this.dialog.querySelectorAll('.media-item').forEach(el => {
+      const id = parseInt(el.dataset.id);
+      const source = el.dataset.source;
+      const isSelected = this.selectedItems.some(i => i.id === id && i.source === source);
+      el.classList.toggle('selected', isSelected);
+    });
   }
 
   toggleFavorite(item, element) {
