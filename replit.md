@@ -102,6 +102,13 @@ The application is fully functional and running on Replit. It consists of:
 - Skala-animation när aktiv
 - Bättre färger från CSS-variabler
 
+**UI/UX Förbättringar - Diskreta ikoner:**
+- Ersatt "Elevstyrning av/på" text med diskret ikon (👥)
+- Custom tooltips med fade-in animation vid hover
+- Ikoner med opacity-effekter (60% normal, 100% när enabled/hover)
+- Förbättrade tooltips med tydligare information
+- Genomgående diskret design som inte distraherar från innehållet
+
 ## Running the Project
 
 ### Development
