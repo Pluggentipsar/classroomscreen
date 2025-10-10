@@ -1880,6 +1880,12 @@
         button.type = "button";
         button.textContent = "Visa bild";
 
+        var libraryButton = document.createElement("button");
+        libraryButton.type = "button";
+        libraryButton.textContent = "📚 Välj från bibliotek";
+        libraryButton.className = "library-btn";
+        libraryButton.title = "Välj symbol från biblioteket";
+
         var preview = createElement("img", "image-preview");
         if (state.url) {
           preview.src = state.url;
@@ -1903,8 +1909,23 @@
           }
         });
 
+        libraryButton.addEventListener("click", function () {
+          if (typeof mediaLibraryUI !== "undefined") {
+            mediaLibraryUI.open({
+              title: "Välj symbol",
+              onSelect: function (item) {
+                state.url = item.url || item.highResUrl;
+                input.value = state.url;
+                preview.src = state.url;
+                if (typeof onChange === "function") { onChange(); }
+              }
+            });
+          }
+        });
+
         container.appendChild(input);
         container.appendChild(button);
+        container.appendChild(libraryButton);
         container.appendChild(preview);
         container._state = state;
       },
@@ -3236,6 +3257,25 @@
               onChange();
             });
             blockContent.appendChild(imageUrlInput);
+
+            var libraryBtn = document.createElement("button");
+            libraryBtn.type = "button";
+            libraryBtn.className = "library-btn";
+            libraryBtn.textContent = "📚 Välj från bibliotek";
+            libraryBtn.addEventListener("click", function () {
+              if (typeof mediaLibraryUI !== "undefined") {
+                mediaLibraryUI.open({
+                  title: "Välj symbol",
+                  onSelect: function (item) {
+                    block.url = item.url || item.highResUrl;
+                    imageUrlInput.value = block.url;
+                    renderCanvas();
+                    onChange();
+                  }
+                });
+              }
+            });
+            blockContent.appendChild(libraryBtn);
 
             var uploadLabel = document.createElement("label");
             uploadLabel.className = "image-upload-label";
