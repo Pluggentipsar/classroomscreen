@@ -178,6 +178,26 @@ The application is fully functional and running on Replit. It consists of:
 - Använder hasOwnProperty check för viewerControlEnabled med true som fallback
 - Widgets synkar nu korrekt både initial load OCH real-time updates
 
+#### Elevbehörigheter (2025-10-10 Kväll)
+
+**Viewer Mode Behörigheter:**
+- Elever kan flytta och resiza widgets temporärt för att organisera sin egen vy
+- Position och storlek sparas INTE och återställs vid nästa sync från läraren
+- makeDraggable och makeResizable skippar persist() när window.isViewerMode = true
+- Detta tillåter tillfällig organisation utan att påverka lärarens layout
+
+**Innehållskontroll:**
+- När viewerControlEnabled = false (👥 knapp AV):
+  - Viewer lock overlay visas och täcker widget-innehållet
+  - Alla knappar och inputs är disabled
+  - Elever kan INTE ändra widget-innehåll
+  
+- När viewerControlEnabled = true (👥 knapp PÅ):
+  - Ingen lock overlay visas
+  - Elever KAN ändra widget-innehåll (t.ex. timer knappar, poll-svar)
+  - Ändringar broadcast:as till läraren via WebSocket
+  - persist() anropas normalt för innehållsändringar (inte position/size)
+
 ## Running the Project
 
 ### Development
