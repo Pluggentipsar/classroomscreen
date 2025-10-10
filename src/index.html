@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="sv">
   <head>
     <meta charset="UTF-8" />
@@ -12,36 +12,97 @@
   <body>
     <div class="app-shell">
       <header class="app-header">
-        <button class="icon-button" data-action="home" title="Hem">
-          <span class="icon">&#x1F3E0;</span>
-        </button>
-        <div class="header-actions">
-          <button class="icon-button" data-action="auto-arrange" title="Organisera widgets">
-            <span class="icon">&#x1F4CA;</span>
+        <div class="header-left">
+          <button class="compact-icon-button header-menu-toggle" data-action="toggle-menu" title="Visa verktygsmeny">
+            <span class="icon">&#9776;</span>
           </button>
-          <button class="icon-button" data-action="font-size" title="Textstorlek">
-            <span class="icon">Aa</span>
+        </div>
+        <div class="header-right">
+          <button class="header-room-button" id="roomControlButton" type="button" data-action="room-control" title="Live-rum">
+            <span class="icon">&#x1F465;</span>
+            <span class="label">Live-rum</span>
           </button>
-          <button class="icon-button" data-action="toggle-widgets" title="Minimera/visa widgets">
-            <span class="icon">&#x1F441;&#xFE0F;</span>
-          </button>
-          <button class="icon-button" data-action="toggle-ui" title="Minimera/visa gränssnitt">
-            <span class="icon">&#x2195;&#xFE0F;</span>
-          </button>
-          <button class="icon-button" data-action="fullscreen" title="Helskärm">
-            <span class="icon">&#x26F6;</span>
-          </button>
-          <button class="icon-button" data-action="admin" title="Hantera screens">
-            <span class="icon">&#x1F4C1;</span>
-          </button>
-          <button class="icon-button" data-action="library" title="Bibliotek">
-            <span class="icon">&#x1F4DA;</span>
-          </button>
-          <button class="icon-button" data-action="settings" title="Inst&auml;llningar">
-            <span class="icon">&#9881;&#65039;</span>
+          <button class="compact-icon-button symbol-library-trigger" data-action="open-symbol-library" title="Symbolbibliotek">
+            <span class="icon">&#x1F4A1;</span>
           </button>
         </div>
       </header>
+
+      <nav class="header-drawer" id="headerDrawer" aria-label="Huvudmeny">
+        <div class="header-drawer-backdrop" data-action="close-menu"></div>
+        <div class="header-drawer-inner">
+          <div class="header-drawer-header">
+            <h2>Verktyg</h2>
+            <button class="compact-icon-button" data-action="close-menu" title="Stäng meny">
+              <span class="icon">&#x2716;&#xFE0F;</span>
+            </button>
+          </div>
+          <div class="header-drawer-actions">
+            <button class="drawer-button" data-action="home">
+              <span class="icon">&#x1F3E0;</span>
+              <span class="label">Hem</span>
+            </button>
+            <button class="drawer-button" data-action="auto-arrange">
+              <span class="icon">&#x1F4CA;</span>
+              <span class="label">Organisera widgets</span>
+            </button>
+            <button class="drawer-button" data-action="font-size">
+              <span class="icon">Aa</span>
+              <span class="label">Textstorlek</span>
+            </button>
+            <button class="drawer-button" data-action="toggle-widgets">
+              <span class="icon">&#x1F441;&#xFE0F;</span>
+              <span class="label">Visa widgets</span>
+            </button>
+            <button class="drawer-button" data-action="toggle-ui">
+              <span class="icon">&#x2195;&#xFE0F;</span>
+              <span class="label">Visa gränssnitt</span>
+            </button>
+            <button class="drawer-button" data-action="fullscreen">
+              <span class="icon">&#x26F6;</span>
+              <span class="label">Helskärm</span>
+            </button>
+            <button class="drawer-button" data-action="admin">
+              <span class="icon">&#x1F4C1;</span>
+              <span class="label">Hantera screens</span>
+            </button>
+            <button class="drawer-button" data-action="library">
+              <span class="icon">&#x1F4DA;</span>
+              <span class="label">Bibliotek</span>
+            </button>
+            <button class="drawer-button" data-action="open-symbol-library">
+              <span class="icon">&#x1F4A1;</span>
+              <span class="label">Symbolbibliotek</span>
+            </button>
+            <button class="drawer-button" data-action="settings">
+              <span class="icon">&#9881;&#xFE0F;</span>
+              <span class="label">Inställningar</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div class="symbol-library-overlay" id="symbolLibraryOverlay" aria-hidden="true">
+        <div class="symbol-library-panel" role="dialog" aria-modal="true" aria-labelledby="symbolLibraryTitle">
+          <header class="symbol-library-header">
+            <h2 id="symbolLibraryTitle">Symbolbibliotek</h2>
+            <button type="button" class="compact-icon-button symbol-library-close" data-action="close-symbol-library" aria-label="Stäng symbolbibliotek">
+              <span class="icon">&#x2716;&#xFE0F;</span>
+            </button>
+          </header>
+          <div class="symbol-library-tools">
+            <label class="symbol-search">
+              <span class="visually-hidden">Sök efter symbol</span>
+              <input type="search" id="symbolSearchInput" placeholder="Sök efter symbol, t.ex. skriva, diskutera..." autocomplete="off" />
+            </label>
+            <div class="symbol-category-list" id="symbolCategoryList" role="tablist" aria-label="Symbolkategorier"></div>
+          </div>
+          <div class="symbol-library-content" id="symbolLibraryContent">
+            <div class="symbol-library-grid" id="symbolLibraryGrid" role="listbox" aria-label="Symboler"></div>
+            <p class="symbol-library-status" id="symbolLibraryStatus" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
 
       <main class="workspace" id="workspace">
         <div class="background-overlay" id="backgroundOverlay"></div>
@@ -172,6 +233,58 @@
           <div class="admin-section">
             <h3>Mina screens</h3>
             <div class="screens-list" id="screensList"></div>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="roomDialog" class="room-dialog">
+      <form method="dialog">
+        <header>
+          <h2>Live-rum</h2>
+          <button type="submit" class="icon-button" title="St&#xE4;ng dialog">&#x2716;&#xFE0F;</button>
+        </header>
+        <div class="room-dialog-content">
+          <div id="roomDialogInactive" class="room-state">
+            <p class="room-description">
+              Starta ett live-rum f&#xF6;r att dela din screen med elever. De ansluter via join-sidan med rumskoden.
+            </p>
+            <label for="roomNameInput" class="room-label">Lektionsnamn</label>
+            <input type="text" id="roomNameInput" class="room-input" placeholder="Exempel: Matematik 8B" maxlength="60" />
+            <div class="room-actions">
+              <button type="button" id="roomStartButton" class="room-primary-btn">Starta rum</button>
+            </div>
+          </div>
+          <div id="roomDialogActive" class="room-state" hidden>
+            <div class="room-section">
+              <div class="room-code-card">
+                <div class="room-code-meta">
+                  <span class="room-code-label">Rumskod</span>
+                  <span id="roomCodeUpdatedAt" class="room-code-timestamp"></span>
+                </div>
+                <div id="roomCodeValue" class="room-code-value">-</div>
+                <div class="room-share-row">
+                  <button type="button" id="roomCopyLinkButton" class="room-secondary-btn">Kopiera elevl&#xE4;nk</button>
+                  <button type="button" id="roomOpenViewerButton" class="room-secondary-btn">&#x1F5D3;&#xFE0F; &#xD6;ppna elevvy</button>
+                  <button type="button" id="roomResyncButton" class="room-secondary-btn">Synka widgets nu</button>
+                </div>
+                <div class="room-link-preview">
+                  <code id="roomJoinLinkPreview"></code>
+                </div>
+              </div>
+            </div>
+            <div class="room-section">
+              <div class="room-section-header">
+                <h3>Anslutna elever</h3>
+                <span id="roomStudentCount" class="room-pill">0</span>
+              </div>
+              <ul id="roomStudentList" class="room-student-list"></ul>
+              <div class="room-empty" id="roomEmptyState">Inga elever anslutna &#xE4;n.</div>
+            </div>
+            <div class="room-section room-control-row">
+              <button type="button" id="roomSyncLayoutButton" class="room-secondary-btn">Synka layout till elever</button>
+              <button type="button" id="roomCloseButton" class="room-danger-btn">Avsluta rum</button>
+            </div>
           </div>
         </div>
       </form>
