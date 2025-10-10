@@ -5096,18 +5096,40 @@
         var entry = manager.widgets[widget.getAttribute("data-id")];
         
         if (entry) {
+          // Get position from widget element
+          var position = {
+            left: parseInt(widget.style.left, 10) || 20,
+            top: parseInt(widget.style.top, 10) || 20
+          };
+          
+          // Get size from widget element if set
+          var size = null;
+          if (widget.style.width) {
+            size = {
+              width: parseInt(widget.style.width, 10),
+              height: parseInt(widget.style.height, 10)
+            };
+          }
+          
+          // Get minimized state
+          var minimized = widget.getAttribute("data-minimized") === "true";
+          
+          // Get widget data using save function
+          var data = entry.save(widget);
+          
           widgets.push({
             syncId: entry.syncId,
             type: entry.type,
             viewerControlEnabled: entry.viewerControlEnabled || false,
-            position: entry.position,
-            size: entry.size,
-            minimized: entry.minimized,
-            data: entry.data || {}
+            position: position,
+            size: size,
+            minimized: minimized,
+            data: data || {}
           });
         }
       }
 
+      console.log("Sending widgets-sync with " + widgets.length + " widgets");
       return self.send({
         type: 'widgets-sync',
         widgets: widgets

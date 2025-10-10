@@ -75,6 +75,12 @@ const connectionMeta = new WeakMap();
 
 wss.on('connection', (ws) => {
   console.log('New WebSocket connection');
+  
+  // Keep connection alive with ping/pong
+  ws.isAlive = true;
+  ws.on('pong', () => {
+    ws.isAlive = true;
+  });
 
   ws.on('message', (message) => {
     let data;
@@ -258,6 +264,23 @@ wss.on('connection', (ws) => {
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
   });
+});
+
+// Ping all clients every 30 seconds to keep connections alive
+const pingInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.log('Terminating dead connection');
+      return ws.terminate();
+    }
+    
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 30000);
+
+wss.on('close', () => {
+  clearInterval(pingInterval);
 });
 
 console.log('WebSocket server initialized');
