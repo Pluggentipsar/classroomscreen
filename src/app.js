@@ -1341,65 +1341,72 @@
       title: "Omröstning",
       defaults: function () {
         return { 
-          question: "Vad tyckte du om lektionen?", 
-          options: ["👍", "😐", "👎"], 
-          votes: [0, 0, 0],
-          pollType: "quick",
+          questions: [
+            {
+              question: "Vad tyckte du om lektionen?",
+              pollType: "quick",
+              options: ["👍", "😐", "👎"],
+              votes: [0, 0, 0],
+              correctAnswer: null,
+              textAnswers: []
+            }
+          ],
+          currentQuestion: 0,
           editMode: false,
           showResults: true,
-          pollLocked: false,
-          correctAnswer: null,
-          textAnswers: []
+          pollLocked: false
         };
       },
       render: function (container, data, onChange) {
+        var questions = ensureArray(data && data.questions);
+        
+        if (!questions.length && data && data.question) {
+          questions = [{
+            question: ensureString(data.question, "Fråga"),
+            pollType: data.pollType || "quick",
+            options: ensureArray(data.options).length ? ensureArray(data.options) : ["👍", "😐", "👎"],
+            votes: ensureArray(data.votes),
+            correctAnswer: data.correctAnswer,
+            textAnswers: ensureArray(data.textAnswers)
+          }];
+        }
+        
+        if (!questions.length) {
+          questions = [{
+            question: "Fråga",
+            pollType: "quick",
+            options: ["👍", "😐", "👎"],
+            votes: [0, 0, 0],
+            correctAnswer: null,
+            textAnswers: []
+          }];
+        }
+        
+        questions.forEach(function(q) {
+          while (q.votes.length < q.options.length) {
+            q.votes.push(0);
+          }
+        });
+        
         var state = {
-          question: ensureString(data && data.question, "Fråga"),
-          options: ensureArray(data && data.options).length ? ensureArray(data && data.options) : ["👍", "😐", "👎"],
-          votes: ensureArray(data && data.votes),
-          pollType: data && data.pollType || "quick",
+          questions: questions,
+          currentQuestion: typeof data.currentQuestion === "number" ? data.currentQuestion : 0,
           editMode: data && data.editMode === true,
           showResults: data && data.showResults !== false,
-          pollLocked: data && data.pollLocked === true,
-          correctAnswer: data && typeof data.correctAnswer === "number" ? data.correctAnswer : null,
-          textAnswers: ensureArray(data && data.textAnswers)
+          pollLocked: data && data.pollLocked === true
         };
         
-        while (state.votes.length < state.options.length) {
-          state.votes.push(0);
+        if (state.currentQuestion >= state.questions.length) {
+          state.currentQuestion = 0;
         }
 
         var header = createElement("div", "poll-header");
         
-        var pollTypeSelect = createElement("select", "poll-type-select");
-        var types = [
-          { value: "quick", label: "👍 Snabbkänsla" },
-          { value: "multiple", label: "☑️ Flerval" },
-          { value: "scale", label: "📊 Skala 1-5" },
-          { value: "quiz", label: "🎯 Quiz" },
-          { value: "freetext", label: "💬 Fritextsvar" }
-        ];
-        types.forEach(function(type) {
-          var option = document.createElement("option");
-          option.value = type.value;
-          option.textContent = type.label;
-          if (state.pollType === type.value) {
-            option.selected = true;
-          }
-          pollTypeSelect.appendChild(option);
-        });
-        pollTypeSelect.addEventListener("change", function() {
-          state.pollType = pollTypeSelect.value;
-          if (state.pollType === "quick") {
-            state.options = ["👍", "😐", "👎"];
-            state.votes = [0, 0, 0];
-          } else if (state.pollType === "scale") {
-            state.options = ["1", "2", "3", "4", "5"];
-            state.votes = [0, 0, 0, 0, 0];
-          }
-          updateView();
-          if (typeof onChange === "function") { onChange(); }
-        });
+        var progressIndicator = createElement("div", "poll-progress");
+        
+        function updateProgress() {
+          progressIndicator.textContent = "Fråga " + (state.currentQuestion + 1) + " av " + state.questions.length;
+        }
         
         var controls = createElement("div", "poll-controls");
         
@@ -1467,7 +1474,7 @@
         controls.appendChild(resultsBtn);
         controls.appendChild(lockBtn);
         
-        header.appendChild(pollTypeSelect);
+        header.appendChild(progressIndicator);
         header.appendChild(controls);
         
         var mainContent = createElement("div", "poll-main-content");
@@ -1475,101 +1482,248 @@
         function renderEditView() {
           clearChildren(mainContent);
           
-          var questionInput = document.createElement("input");
-          questionInput.type = "text";
-          questionInput.className = "poll-question-input";
-          questionInput.value = state.question;
-          questionInput.placeholder = "Skriv din fråga här...";
-          questionInput.addEventListener("input", function() {
-            state.question = questionInput.value;
-            if (typeof onChange === "function") { onChange(); }
-          });
-          mainContent.appendChild(questionInput);
+          var questionsList = createElement("div", "poll-questions-list");
+          var expandedIndex = null;
           
-          if (state.pollType === "freetext") {
-            var freetextInfo = createElement("div", "poll-freetext-info");
-            freetextInfo.textContent = "Elever kan skriva egna fritextsvar";
-            mainContent.appendChild(freetextInfo);
-            return;
+          function getPollTypeIcon(pollType) {
+            if (pollType === "quick") return "👍";
+            if (pollType === "quiz") return "✓";
+            if (pollType === "scale") return "📊";
+            if (pollType === "freetext") return "✍️";
+            return "❓";
           }
           
-          var optionsContainer = createElement("div", "poll-edit-options");
-          
-          function renderEditOptions() {
-            clearChildren(optionsContainer);
-            state.options.forEach(function(opt, index) {
-              var optionRow = createElement("div", "poll-edit-option-row");
+          function renderQuestionsList() {
+            clearChildren(questionsList);
+            
+            state.questions.forEach(function(q, qIndex) {
+              var questionCard = createElement("div", "poll-question-card");
               
-              var optionInput = document.createElement("input");
-              optionInput.type = "text";
-              optionInput.value = opt;
-              optionInput.placeholder = "Alternativ " + (index + 1);
-              optionInput.addEventListener("input", function() {
-                state.options[index] = optionInput.value;
-                if (typeof onChange === "function") { onChange(); }
+              var cardHeader = createElement("div", "poll-question-card-header");
+              cardHeader.addEventListener("click", function() {
+                expandedIndex = expandedIndex === qIndex ? null : qIndex;
+                renderQuestionsList();
               });
               
-              if (state.pollType === "quiz") {
-                var correctBtn = createElement("button", "poll-correct-btn");
-                correctBtn.type = "button";
-                correctBtn.innerHTML = state.correctAnswer === index ? "✓" : "○";
-                if (state.correctAnswer === index) {
-                  correctBtn.classList.add("is-correct");
-                }
-                correctBtn.addEventListener("click", function() {
-                  state.correctAnswer = state.correctAnswer === index ? null : index;
-                  renderEditOptions();
-                  if (typeof onChange === "function") { onChange(); }
-                });
-                optionRow.appendChild(correctBtn);
-              }
+              var cardIcon = createElement("span", "poll-question-card-icon");
+              cardIcon.textContent = getPollTypeIcon(q.pollType);
               
-              optionRow.appendChild(optionInput);
+              var cardTitle = createElement("span", "poll-question-card-title");
+              cardTitle.textContent = q.question || "Tom fråga";
               
-              if (state.pollType !== "quick" && state.pollType !== "scale") {
-                var deleteBtn = createElement("button", "poll-delete-btn");
-                deleteBtn.type = "button";
-                deleteBtn.innerHTML = "×";
-                deleteBtn.addEventListener("click", function() {
-                  state.options.splice(index, 1);
-                  state.votes.splice(index, 1);
-                  if (state.correctAnswer === index) {
-                    state.correctAnswer = null;
-                  } else if (state.correctAnswer !== null && state.correctAnswer > index) {
-                    state.correctAnswer--;
+              cardHeader.appendChild(cardIcon);
+              cardHeader.appendChild(cardTitle);
+              
+              if (state.questions.length > 1) {
+                var removeBtn = createElement("button", "poll-question-remove-btn");
+                removeBtn.type = "button";
+                removeBtn.innerHTML = "×";
+                removeBtn.addEventListener("click", function(e) {
+                  e.stopPropagation();
+                  state.questions.splice(qIndex, 1);
+                  if (state.currentQuestion >= state.questions.length) {
+                    state.currentQuestion = state.questions.length - 1;
                   }
-                  renderEditOptions();
+                  expandedIndex = null;
+                  renderQuestionsList();
+                  updateProgress();
                   if (typeof onChange === "function") { onChange(); }
                 });
-                optionRow.appendChild(deleteBtn);
+                cardHeader.appendChild(removeBtn);
               }
               
-              optionsContainer.appendChild(optionRow);
+              questionCard.appendChild(cardHeader);
+              
+              if (expandedIndex === qIndex) {
+                questionCard.classList.add("expanded");
+                
+                var cardBody = createElement("div", "poll-question-card-body");
+                
+                var typeSelector = createElement("div", "poll-type-select");
+                var typeLabel = createElement("label", "");
+                typeLabel.textContent = "Typ: ";
+                var typeSelect = document.createElement("select");
+                typeSelect.innerHTML = '<option value="quick">Snabb (👍😐👎)</option><option value="quiz">Quiz (rätt svar)</option><option value="scale">Skala (1-5)</option><option value="freetext">Fritext</option>';
+                typeSelect.value = q.pollType;
+                typeSelect.addEventListener("change", function() {
+                  q.pollType = typeSelect.value;
+                  if (q.pollType === "quick") {
+                    q.options = ["👍", "😐", "👎"];
+                    q.votes = [0, 0, 0];
+                  } else if (q.pollType === "scale") {
+                    q.options = ["1", "2", "3", "4", "5"];
+                    q.votes = [0, 0, 0, 0, 0];
+                  } else if (q.pollType === "freetext") {
+                    q.options = [];
+                    q.votes = [];
+                    q.textAnswers = q.textAnswers || [];
+                  }
+                  renderQuestionsList();
+                  if (typeof onChange === "function") { onChange(); }
+                });
+                typeLabel.appendChild(typeSelect);
+                typeSelector.appendChild(typeLabel);
+                cardBody.appendChild(typeSelector);
+                
+                var questionInput = document.createElement("input");
+                questionInput.type = "text";
+                questionInput.className = "poll-question-input";
+                questionInput.value = q.question;
+                questionInput.placeholder = "Skriv din fråga här...";
+                questionInput.addEventListener("input", function() {
+                  q.question = questionInput.value;
+                  renderQuestionsList();
+                  if (typeof onChange === "function") { onChange(); }
+                });
+                cardBody.appendChild(questionInput);
+                
+                if (q.pollType === "freetext") {
+                  var freetextInfo = createElement("div", "poll-freetext-info");
+                  freetextInfo.textContent = "Elever kan skriva egna fritextsvar";
+                  cardBody.appendChild(freetextInfo);
+                } else {
+                  var optionsContainer = createElement("div", "poll-edit-options");
+                  
+                  function renderEditOptions() {
+                    clearChildren(optionsContainer);
+                    q.options.forEach(function(opt, index) {
+                      var optionRow = createElement("div", "poll-edit-option-row");
+                      
+                      if (q.pollType === "quiz") {
+                        var correctBtn = createElement("button", "poll-correct-btn");
+                        correctBtn.type = "button";
+                        correctBtn.innerHTML = q.correctAnswer === index ? "✓" : "○";
+                        if (q.correctAnswer === index) {
+                          correctBtn.classList.add("is-correct");
+                        }
+                        correctBtn.addEventListener("click", function() {
+                          q.correctAnswer = q.correctAnswer === index ? null : index;
+                          renderEditOptions();
+                          if (typeof onChange === "function") { onChange(); }
+                        });
+                        optionRow.appendChild(correctBtn);
+                      }
+                      
+                      var optionInput = document.createElement("input");
+                      optionInput.type = "text";
+                      optionInput.value = opt;
+                      optionInput.placeholder = "Alternativ " + (index + 1);
+                      optionInput.addEventListener("input", function() {
+                        q.options[index] = optionInput.value;
+                        if (typeof onChange === "function") { onChange(); }
+                      });
+                      optionRow.appendChild(optionInput);
+                      
+                      if (q.pollType !== "quick" && q.pollType !== "scale") {
+                        var deleteBtn = createElement("button", "poll-delete-btn");
+                        deleteBtn.type = "button";
+                        deleteBtn.innerHTML = "×";
+                        deleteBtn.addEventListener("click", function() {
+                          q.options.splice(index, 1);
+                          q.votes.splice(index, 1);
+                          if (q.correctAnswer === index) {
+                            q.correctAnswer = null;
+                          } else if (q.correctAnswer !== null && q.correctAnswer > index) {
+                            q.correctAnswer--;
+                          }
+                          renderEditOptions();
+                          if (typeof onChange === "function") { onChange(); }
+                        });
+                        optionRow.appendChild(deleteBtn);
+                      }
+                      
+                      optionsContainer.appendChild(optionRow);
+                    });
+                  }
+                  
+                  renderEditOptions();
+                  cardBody.appendChild(optionsContainer);
+                  
+                  if (q.pollType !== "quick" && q.pollType !== "scale") {
+                    var addOptionBtn = createElement("button", "poll-add-option-btn");
+                    addOptionBtn.type = "button";
+                    addOptionBtn.textContent = "+ Lägg till alternativ";
+                    addOptionBtn.addEventListener("click", function() {
+                      q.options.push("Nytt alternativ");
+                      q.votes.push(0);
+                      renderEditOptions();
+                      if (typeof onChange === "function") { onChange(); }
+                    });
+                    cardBody.appendChild(addOptionBtn);
+                  }
+                }
+                
+                questionCard.appendChild(cardBody);
+              }
+              
+              questionsList.appendChild(questionCard);
             });
           }
           
-          renderEditOptions();
-          mainContent.appendChild(optionsContainer);
+          renderQuestionsList();
+          mainContent.appendChild(questionsList);
           
-          if (state.pollType !== "quick" && state.pollType !== "scale") {
-            var addOptionBtn = createElement("button", "poll-add-option-btn");
-            addOptionBtn.type = "button";
-            addOptionBtn.textContent = "+ Lägg till alternativ";
-            addOptionBtn.addEventListener("click", function() {
-              state.options.push("Nytt alternativ");
-              state.votes.push(0);
-              renderEditOptions();
-              if (typeof onChange === "function") { onChange(); }
+          var addQuestionBtn = createElement("button", "poll-add-question-btn");
+          addQuestionBtn.type = "button";
+          addQuestionBtn.innerHTML = "➕ Lägg till fråga";
+          addQuestionBtn.addEventListener("click", function() {
+            state.questions.push({
+              question: "Ny fråga",
+              pollType: "quick",
+              options: ["👍", "😐", "👎"],
+              votes: [0, 0, 0],
+              correctAnswer: null,
+              textAnswers: []
             });
-            mainContent.appendChild(addOptionBtn);
-          }
+            expandedIndex = state.questions.length - 1;
+            renderQuestionsList();
+            updateProgress();
+            if (typeof onChange === "function") { onChange(); }
+          });
+          mainContent.appendChild(addQuestionBtn);
         }
         
         function renderVotingView() {
           clearChildren(mainContent);
           
+          var currentQ = state.questions[state.currentQuestion];
+          
+          if (state.questions.length > 1) {
+            var navigation = createElement("div", "poll-navigation");
+            
+            var prevBtn = createElement("button", "poll-nav-btn");
+            prevBtn.type = "button";
+            prevBtn.innerHTML = "← Föregående";
+            prevBtn.disabled = state.currentQuestion === 0;
+            prevBtn.addEventListener("click", function() {
+              if (state.currentQuestion > 0) {
+                state.currentQuestion--;
+                updateProgress();
+                renderVotingView();
+                if (typeof onChange === "function") { onChange(); }
+              }
+            });
+            
+            var nextBtn = createElement("button", "poll-nav-btn");
+            nextBtn.type = "button";
+            nextBtn.innerHTML = "Nästa →";
+            nextBtn.disabled = state.currentQuestion === state.questions.length - 1;
+            nextBtn.addEventListener("click", function() {
+              if (state.currentQuestion < state.questions.length - 1) {
+                state.currentQuestion++;
+                updateProgress();
+                renderVotingView();
+                if (typeof onChange === "function") { onChange(); }
+              }
+            });
+            
+            navigation.appendChild(prevBtn);
+            navigation.appendChild(nextBtn);
+            mainContent.appendChild(navigation);
+          }
+          
           var questionDisplay = createElement("h3", "poll-question-display");
-          questionDisplay.textContent = state.question;
+          questionDisplay.textContent = currentQ.question;
           mainContent.appendChild(questionDisplay);
           
           if (state.pollLocked) {
@@ -1578,7 +1732,7 @@
             mainContent.appendChild(lockedMsg);
           }
           
-          if (state.pollType === "freetext") {
+          if (currentQ.pollType === "freetext") {
             var freetextContainer = createElement("div", "poll-freetext-container");
             
             var textInput = document.createElement("textarea");
@@ -1593,7 +1747,10 @@
             submitBtn.disabled = state.pollLocked;
             submitBtn.addEventListener("click", function() {
               if (!state.pollLocked && textInput.value.trim()) {
-                state.textAnswers.push(textInput.value.trim());
+                if (!currentQ.textAnswers) {
+                  currentQ.textAnswers = [];
+                }
+                currentQ.textAnswers.push(textInput.value.trim());
                 textInput.value = "";
                 renderResults();
                 if (typeof onChange === "function") { onChange(); }
@@ -1606,12 +1763,12 @@
           } else {
             var votingButtons = createElement("div", "poll-voting-buttons");
             
-            state.options.forEach(function(option, index) {
+            currentQ.options.forEach(function(option, index) {
               var voteBtn = createElement("button", "poll-vote-btn");
               voteBtn.type = "button";
               voteBtn.textContent = option;
               
-              if (state.pollType === "quiz" && state.correctAnswer === index) {
+              if (currentQ.pollType === "quiz" && currentQ.correctAnswer === index) {
                 voteBtn.classList.add("correct-answer");
               }
               
@@ -1619,7 +1776,7 @@
               
               voteBtn.addEventListener("click", function() {
                 if (!state.pollLocked) {
-                  state.votes[index]++;
+                  currentQ.votes[index]++;
                   renderResults();
                   if (typeof onChange === "function") { onChange(); }
                 }
@@ -1644,19 +1801,22 @@
             return;
           }
           
+          var currentQ = state.questions[state.currentQuestion];
+          
           var resultsContainer = createElement("div", "poll-results");
           var resultsTitle = createElement("h4", "poll-results-title");
           resultsTitle.textContent = "Resultat";
           resultsContainer.appendChild(resultsTitle);
           
-          if (state.pollType === "freetext") {
-            if (state.textAnswers.length === 0) {
+          if (currentQ.pollType === "freetext") {
+            var textAnswers = currentQ.textAnswers || [];
+            if (textAnswers.length === 0) {
               var noAnswers = createElement("p", "poll-no-answers");
               noAnswers.textContent = "Inga svar ännu";
               resultsContainer.appendChild(noAnswers);
             } else {
               var answersList = createElement("div", "poll-freetext-answers");
-              state.textAnswers.forEach(function(answer, idx) {
+              textAnswers.forEach(function(answer, idx) {
                 var answerItem = createElement("div", "poll-freetext-answer-item");
                 var answerText = createElement("span", "poll-freetext-answer-text");
                 answerText.textContent = answer;
@@ -1665,7 +1825,7 @@
                 deleteBtn.type = "button";
                 deleteBtn.innerHTML = "×";
                 deleteBtn.addEventListener("click", function() {
-                  state.textAnswers.splice(idx, 1);
+                  currentQ.textAnswers.splice(idx, 1);
                   renderResults();
                   if (typeof onChange === "function") { onChange(); }
                 });
@@ -1681,19 +1841,19 @@
             clearBtn.type = "button";
             clearBtn.textContent = "🔄 Rensa alla svar";
             clearBtn.addEventListener("click", function() {
-              state.textAnswers = [];
+              currentQ.textAnswers = [];
               renderResults();
               if (typeof onChange === "function") { onChange(); }
             });
             resultsContainer.appendChild(clearBtn);
           } else {
             var total = 0;
-            state.votes.forEach(function(v) {
+            currentQ.votes.forEach(function(v) {
               total += ensureNumber(v, 0);
             });
             if (total === 0) total = 1;
             
-            state.options.forEach(function(option, index) {
+            currentQ.options.forEach(function(option, index) {
               var resultRow = createElement("div", "poll-result-row");
               
               var label = createElement("span", "poll-result-label");
@@ -1702,10 +1862,10 @@
               
               var barContainer = createElement("div", "poll-result-bar-container");
               var bar = createElement("div", "poll-result-bar");
-              var percentage = Math.round((ensureNumber(state.votes[index], 0) / total) * 100);
+              var percentage = Math.round((ensureNumber(currentQ.votes[index], 0) / total) * 100);
               bar.style.width = percentage + "%";
               
-              if (state.pollType === "quiz" && state.correctAnswer === index) {
+              if (currentQ.pollType === "quiz" && currentQ.correctAnswer === index) {
                 bar.classList.add("correct-bar");
               }
               
@@ -1713,7 +1873,7 @@
               resultRow.appendChild(barContainer);
               
               var count = createElement("span", "poll-result-count");
-              count.textContent = state.votes[index] + " (" + percentage + "%)";
+              count.textContent = currentQ.votes[index] + " (" + percentage + "%)";
               resultRow.appendChild(count);
               
               resultsContainer.appendChild(resultRow);
@@ -1723,7 +1883,7 @@
             resetBtn.type = "button";
             resetBtn.textContent = "🔄 Nollställ röster";
             resetBtn.addEventListener("click", function() {
-              state.votes = state.votes.map(function() { return 0; });
+              currentQ.votes = currentQ.votes.map(function() { return 0; });
               renderResults();
               if (typeof onChange === "function") { onChange(); }
             });
@@ -1747,6 +1907,7 @@
         updateEditButton();
         updateResultsButton();
         updateLockButton();
+        updateProgress();
         updateView();
         
         container._state = state;
@@ -1756,27 +1917,28 @@
         var state = content && content._state;
         if (!state) {
           return { 
-            question: "Fråga", 
-            options: ["👍", "😐", "👎"], 
-            votes: [0, 0, 0],
-            pollType: "quick",
+            questions: [
+              {
+                question: "Fråga", 
+                pollType: "quick",
+                options: ["👍", "😐", "👎"], 
+                votes: [0, 0, 0],
+                correctAnswer: null,
+                textAnswers: []
+              }
+            ],
+            currentQuestion: 0,
             editMode: false,
             showResults: true,
-            pollLocked: false,
-            correctAnswer: null,
-            textAnswers: []
+            pollLocked: false
           };
         }
         return {
-          question: ensureString(state.question, "Fråga"),
-          options: ensureArray(state.options),
-          votes: ensureArray(state.votes),
-          pollType: state.pollType || "quick",
+          questions: state.questions,
+          currentQuestion: state.currentQuestion,
           editMode: state.editMode === true,
           showResults: state.showResults !== false,
-          pollLocked: state.pollLocked === true,
-          correctAnswer: state.correctAnswer,
-          textAnswers: ensureArray(state.textAnswers)
+          pollLocked: state.pollLocked === true
         };
       }
     },
