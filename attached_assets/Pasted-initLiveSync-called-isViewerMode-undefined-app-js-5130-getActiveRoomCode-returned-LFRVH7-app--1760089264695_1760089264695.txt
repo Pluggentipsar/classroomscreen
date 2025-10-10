@@ -1,0 +1,68 @@
+initLiveSync() called, isViewerMode: undefined
+app.js:5130 getActiveRoomCode() returned: LFRVH7
+app.js:5148 Creating LiveSyncClient with role: host roomCode: LFRVH7
+app.js:4843 Connecting to WebSocket: wss://klasstavla.replit.app Room: LFRVH7 Role: host
+app.js:5152 LiveSync initialized - Role: host Room: LFRVH7
+app.js:3897 LiveSync not connected yet, marking pending broadcast
+app.js:4849 WebSocket connected
+app.js:4950 WebSocket message received: joined Object
+app.js:4954 Successfully joined room as host
+app.js:4960 Host joined, broadcasting initial widget state
+app.js:4965 Flushing pending broadcast
+/Musik/Lugn%20studiemusik,%20piano.mp3:1  Failed to load resource: the server responded with a status of 404 (Not Found)Understand this error
+app.js:4843 Connecting to WebSocket: wss://klasstavla.replit.app Room: 4RE8UL Role: host
+app.js:5358 LiveSync connecting for room: 4RE8UL
+app.js:4880 WebSocket closed
+app.js:4893 Max reconnection attempts reached
+self.ws.onclose @ app.js:4893Understand this error
+app.js:4849 WebSocket connected
+app.js:4950 WebSocket message received: joined Object
+app.js:4954 Successfully joined room as host
+app.js:4960 Host joined, broadcasting initial widget state
+app.js:4843 Connecting to WebSocket: wss://klasstavla.replit.app Room: XV6QA9 Role: host
+app.js:5358 LiveSync connecting for room: XV6QA9
+app.js:4880 WebSocket closed
+app.js:4893 Max reconnection attempts reached
+self.ws.onclose @ app.js:4893Understand this error
+app.js:4849 WebSocket connected
+app.js:4950 WebSocket message received: joined Object
+app.js:4954 Successfully joined room as host
+app.js:4960 Host joined, broadcasting initial widget state
+app.js:4880 WebSocket closed
+app.js:4888 Reconnecting in 1000ms (attempt 1)
+app.js:4843 Connecting to WebSocket: wss://klasstavla.replit.app Room: XV6QA9 Role: host
+app.js:4846 WebSocket connection to 'wss://klasstavla.replit.app/' failed: 
+LiveSyncClient.connect @ app.js:4846Understand this error
+app.js:4874 WebSocket error: Event
+self.ws.onerror @ app.js:4874Understand this error
+app.js:4880 WebSocket closed
+app.js:4888 Reconnecting in 2000ms (attempt 2)
+app.js:4843 Connecting to WebSocket: wss://klasstavla.replit.app Room: XV6QA9 Role: host
+app.js:4846 WebSocket connection to 'wss://klasstavla.replit.app/' failed: 
+LiveSyncClient.connect @ app.js:4846Understand this error
+app.js:4874 WebSocket error: Event
+self.ws.onerror @ app.js:4874Understand this error
+app.js:4880 WebSocket closed
+app.js:4888 Reconnecting in 4000ms (attempt 3)
+app.js:4843 Connecting to WebSocket: wss://klasstavla.replit.app Room: XV6QA9 Role: host
+app.js:4846 WebSocket connection to 'wss://klasstavla.replit.app/' failed: 
+LiveSyncClient.connect @ app.js:4846Understand this error
+app.js:4874 WebSocket error: Event
+self.ws.onerror @ app.js:4874Understand this error
+app.js:4880 WebSocket closed
+app.js:4888 Reconnecting in 8000ms (attempt 4)
+app.js:4843 Connecting to WebSocket: wss://klasstavla.replit.app Room: XV6QA9 Role: host
+app.js:4846 WebSocket connection to 'wss://klasstavla.replit.app/' failed: 
+LiveSyncClient.connect @ app.js:4846Understand this error
+app.js:4874 WebSocket error: Event
+self.ws.onerror @ app.js:4874Understand this error
+app.js:4880 WebSocket closed
+app.js:4888 Reconnecting in 16000ms (attempt 5)
+app.js:4843 Connecting to WebSocket: wss://klasstavla.replit.app Room: XV6QA9 Role: host
+app.js:4846 WebSocket connection to 'wss://klasstavla.replit.app/' failed: 
+LiveSyncClient.connect @ app.js:4846Understand this error
+app.js:4874 WebSocket error: Event
+self.ws.onerror @ app.js:4874Understand this error
+app.js:4880 WebSocket closed
+app.js:4893 Max reconnection attempts reached
+self.ws.onclose @ app.js:4893Understand this error

@@ -19,7 +19,15 @@
   var backgroundMessage = document.getElementById("backgroundMessage");
   var moreGrid = document.getElementById("moreGrid");
 
-  if (!widgetLayer || !backgroundOverlay || !toolbar) {
+  // Essential elements - viewer mode only needs widgetLayer and backgroundOverlay
+  if (!widgetLayer || !backgroundOverlay) {
+    console.error("Missing essential elements:", { widgetLayer: !!widgetLayer, backgroundOverlay: !!backgroundOverlay });
+    return;
+  }
+  
+  // Toolbar is optional in viewer mode
+  if (!toolbar && !window.isViewerMode) {
+    console.error("Missing toolbar element in non-viewer mode");
     return;
   }
 
