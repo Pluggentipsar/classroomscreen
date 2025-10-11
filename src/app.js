@@ -3506,8 +3506,9 @@
         var toggleControlsBtn = document.createElement("button");
         toggleControlsBtn.type = "button";
         toggleControlsBtn.className = "pace-bar-toggle-controls";
-        toggleControlsBtn.textContent = state.showControls ? "🔧 Dölj kontroller" : "🔧 Visa kontroller";
-        toggleControlsBtn.title = "Visa/dölj kontroller";
+        if (state.showControls) toggleControlsBtn.classList.add("active");
+        toggleControlsBtn.textContent = "⚙️";
+        toggleControlsBtn.title = state.showControls ? "Dölj kontroller" : "Visa kontroller";
         headerControls.appendChild(toggleControlsBtn);
 
         var syncBtn = document.createElement("button");
@@ -3576,7 +3577,12 @@
 
         toggleControlsBtn.addEventListener("click", function () {
           state.showControls = !state.showControls;
-          toggleControlsBtn.textContent = state.showControls ? "🔧 Dölj kontroller" : "🔧 Visa kontroller";
+          toggleControlsBtn.title = state.showControls ? "Dölj kontroller" : "Visa kontroller";
+          if (state.showControls) {
+            toggleControlsBtn.classList.add("active");
+          } else {
+            toggleControlsBtn.classList.remove("active");
+          }
           durationControl.style.display = state.showControls ? "block" : "none";
           controls.style.display = state.showControls ? "flex" : "none";
           if (typeof onChange === "function") { onChange(); }
