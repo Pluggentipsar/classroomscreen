@@ -17,7 +17,8 @@ Classroomscreen is an interactive classroom management tool designed to create e
 - **Real-time Sync**: WebSocket for cross-device synchronization (with BroadcastChannel fallback)
 
 ### Core Features
-1.  **Widget System**: Comprehensive suite including Timer, Clock, Poll, Randomizer, Sound Level, Music, Image, Text, Work Symbols, Traffic Light, Timetable, Presentation, Lesson Progress, Group Maker, Scoreboard, Hand Raise, YouTube, QR Code, Step-by-step instructions, and Critical Thinking Cards.
+1.  **Screen Navigation System**: Smooth navigation system with discrete control in bottom-right corner showing current/total screens (e.g., "3/3"). Features include arrow buttons to navigate between screens, + button to quickly add new screens, save button to persist screens with custom names, and keyboard navigation (← → arrows) that respects lesson mode. Integrates seamlessly with existing screen management and persists both temporary and saved screens.
+2.  **Widget System**: Comprehensive suite including Timer, Clock, Poll, Randomizer, Sound Level, Music, Image, Text, Work Symbols, Traffic Light, Timetable, Presentation, Lesson Progress, Group Maker, Scoreboard, Hand Raise, YouTube, QR Code, Step-by-step instructions, and Critical Thinking Cards.
     -   **Enhanced Timer Widget**: Dual display modes (Pomodoro ring with SVG progress visualization and Digital display). Features show/hide settings toggle, customizable duration, and multiple alert types.
     -   **Enhanced Image Widget**: Multi-image support, carousel navigation, fullscreen mode, and individual image deletion.
     -   **Enhanced Step-by-Step Instructions Widget**: Rich step format with media integration, "Ett i taget" and "Visa alla" view modes, and student view options.
