@@ -744,7 +744,6 @@
           running: false,
           remaining: 300,
           displayModes: {
-            analog: false,
             pomodoro: true,
             digital: true
           },
@@ -756,7 +755,7 @@
         var alertType = data && data.alertType ? data.alertType : "sound";
         var running = data && data.running === true ? true : false;
         var remaining = data && typeof data.remaining === "number" ? data.remaining : (minutes * 60);
-        var displayModes = data && data.displayModes ? data.displayModes : { analog: false, pomodoro: true, digital: true };
+        var displayModes = data && data.displayModes ? data.displayModes : { pomodoro: true, digital: true };
         var showSettings = data && data.showSettings !== undefined ? data.showSettings : true;
         
         var state = {
@@ -767,16 +766,12 @@
           alertType: alertType,
           minutes: minutes,
           displayModes: {
-            analog: !!displayModes.analog,
-            pomodoro: !!displayModes.pomodoro,
-            digital: !!displayModes.digital
+            pomodoro: displayModes.pomodoro !== false,
+            digital: displayModes.digital !== false
           },
           showSettings: showSettings
         };
 
-        var analogClock = null;
-        var analogHourHand = null;
-        var analogMinuteHand = null;
         var pomodoroFillCircle = null;
         var digitalDisplay = null;
         var circumference = 2 * Math.PI * 64;
@@ -788,11 +783,6 @@
           var header = createElement("div", "timer-header");
           var displayToggles = createElement("div", "timer-display-toggles");
           
-          var analogToggle = createElement("button", "timer-display-toggle");
-          analogToggle.type = "button";
-          if (state.displayModes.analog) analogToggle.classList.add("active");
-          analogToggle.innerHTML = "⏱️ Analog";
-          
           var pomodoroToggle = createElement("button", "timer-display-toggle");
           pomodoroToggle.type = "button";
           if (state.displayModes.pomodoro) pomodoroToggle.classList.add("active");
@@ -803,7 +793,6 @@
           if (state.displayModes.digital) digitalToggle.classList.add("active");
           digitalToggle.innerHTML = "🔢 Digital";
           
-          displayToggles.appendChild(analogToggle);
           displayToggles.appendChild(pomodoroToggle);
           displayToggles.appendChild(digitalToggle);
           
@@ -819,74 +808,6 @@
           // Displays container
           var displaysContainer = createElement("div", "timer-displays-container");
           if (!state.showSettings) displaysContainer.classList.add("compact");
-          
-          // Analog Clock
-          if (state.displayModes.analog) {
-            var analogSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            analogSVG.setAttribute("viewBox", "0 0 160 160");
-            analogSVG.setAttribute("class", "timer-analog-clock");
-            
-            var face = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-            face.setAttribute("class", "timer-clock-face");
-            face.setAttribute("cx", "80");
-            face.setAttribute("cy", "80");
-            face.setAttribute("r", "70");
-            face.setAttribute("fill", "none");
-            face.setAttribute("stroke", "currentColor");
-            face.setAttribute("stroke-width", "2");
-            analogSVG.appendChild(face);
-            
-            for (var i = 0; i < 12; i++) {
-              var angle = i * 30 - 90;
-              var rad = angle * Math.PI / 180;
-              var x1 = 80 + Math.cos(rad) * 60;
-              var y1 = 80 + Math.sin(rad) * 60;
-              var x2 = 80 + Math.cos(rad) * 70;
-              var y2 = 80 + Math.sin(rad) * 70;
-              
-              var marker = document.createElementNS("http://www.w3.org/2000/svg", "line");
-              marker.setAttribute("class", "timer-clock-marker");
-              marker.setAttribute("x1", String(x1));
-              marker.setAttribute("y1", String(y1));
-              marker.setAttribute("x2", String(x2));
-              marker.setAttribute("y2", String(y2));
-              marker.setAttribute("stroke", "currentColor");
-              marker.setAttribute("stroke-width", i % 3 === 0 ? "3" : "2");
-              analogSVG.appendChild(marker);
-            }
-            
-            analogHourHand = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            analogHourHand.setAttribute("class", "timer-hour-hand");
-            analogHourHand.setAttribute("x1", "80");
-            analogHourHand.setAttribute("y1", "80");
-            analogHourHand.setAttribute("x2", "80");
-            analogHourHand.setAttribute("y2", "50");
-            analogHourHand.setAttribute("stroke", "currentColor");
-            analogHourHand.setAttribute("stroke-width", "5");
-            analogHourHand.setAttribute("stroke-linecap", "round");
-            analogSVG.appendChild(analogHourHand);
-            
-            analogMinuteHand = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            analogMinuteHand.setAttribute("class", "timer-minute-hand");
-            analogMinuteHand.setAttribute("x1", "80");
-            analogMinuteHand.setAttribute("y1", "80");
-            analogMinuteHand.setAttribute("x2", "80");
-            analogMinuteHand.setAttribute("y2", "30");
-            analogMinuteHand.setAttribute("stroke", "currentColor");
-            analogMinuteHand.setAttribute("stroke-width", "3");
-            analogMinuteHand.setAttribute("stroke-linecap", "round");
-            analogSVG.appendChild(analogMinuteHand);
-            
-            var centerDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-            centerDot.setAttribute("cx", "80");
-            centerDot.setAttribute("cy", "80");
-            centerDot.setAttribute("r", "4");
-            centerDot.setAttribute("fill", "currentColor");
-            analogSVG.appendChild(centerDot);
-            
-            displaysContainer.appendChild(analogSVG);
-            analogClock = analogSVG;
-          }
           
           // Pomodoro Ring
           if (state.displayModes.pomodoro) {
@@ -1116,21 +1037,6 @@
           }
           
           // Event listeners for display mode toggles
-          analogToggle.addEventListener("click", function () {
-            if (window.isViewerMode) {
-              var widget = container.closest(".widget");
-              var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-              if (!viewerControlEnabled) return;
-            }
-            
-            var newValue = !state.displayModes.analog;
-            if (!newValue && !state.displayModes.pomodoro && !state.displayModes.digital) return;
-            state.displayModes.analog = newValue;
-            renderUI();
-            updateAllDisplays();
-            if (typeof onChange === "function") onChange();
-          });
-          
           pomodoroToggle.addEventListener("click", function () {
             if (window.isViewerMode) {
               var widget = container.closest(".widget");
@@ -1139,7 +1045,7 @@
             }
             
             var newValue = !state.displayModes.pomodoro;
-            if (!newValue && !state.displayModes.analog && !state.displayModes.digital) return;
+            if (!newValue && !state.displayModes.digital) return;
             state.displayModes.pomodoro = newValue;
             renderUI();
             updateAllDisplays();
@@ -1154,7 +1060,7 @@
             }
             
             var newValue = !state.displayModes.digital;
-            if (!newValue && !state.displayModes.analog && !state.displayModes.pomodoro) return;
+            if (!newValue && !state.displayModes.pomodoro) return;
             state.displayModes.digital = newValue;
             renderUI();
             updateAllDisplays();
@@ -1202,19 +1108,6 @@
               pomodoroFillCircle.classList.remove("warning");
             }
           }
-          
-          if (analogClock && analogHourHand && analogMinuteHand) {
-            var totalMinutes = state.minutes;
-            var remainingMinutes = state.remaining / 60;
-            var hourProgress = (totalMinutes - remainingMinutes) / totalMinutes;
-            var hourAngle = hourProgress * 360 - 90;
-            
-            var minuteProgress = (60 - (state.remaining % 60)) / 60;
-            var minuteAngle = minuteProgress * 360 - 90;
-            
-            analogHourHand.setAttribute("transform", "rotate(" + hourAngle + " 80 80)");
-            analogMinuteHand.setAttribute("transform", "rotate(" + minuteAngle + " 80 80)");
-          }
         }
 
         function stopTimer() {
@@ -1244,7 +1137,7 @@
             alertType: "sound",
             running: false,
             remaining: 300,
-            displayModes: { analog: false, pomodoro: true, digital: true },
+            displayModes: { pomodoro: true, digital: true },
             showSettings: true
           };
         }
@@ -1253,7 +1146,7 @@
           alertType: state.alertType || "sound",
           running: !!state.running,
           remaining: ensureNumber(state.remaining, state.duration || 300),
-          displayModes: state.displayModes || { analog: false, pomodoro: true, digital: true },
+          displayModes: state.displayModes || { pomodoro: true, digital: true },
           showSettings: state.showSettings !== undefined ? state.showSettings : true
         };
       },
