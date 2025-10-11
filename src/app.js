@@ -738,286 +738,523 @@
     "timer": {
       title: "Timer",
       defaults: function () {
-        return { minutes: 5, alertType: "sound" };
+        return { 
+          minutes: 5, 
+          alertType: "sound",
+          running: false,
+          remaining: 300,
+          displayModes: {
+            analog: false,
+            pomodoro: true,
+            digital: true
+          },
+          showSettings: true
+        };
       },
       render: function (container, data, onChange) {
         var minutes = data && typeof data.minutes === "number" ? data.minutes : 5;
         var alertType = data && data.alertType ? data.alertType : "sound";
         var running = data && data.running === true ? true : false;
         var remaining = data && typeof data.remaining === "number" ? data.remaining : (minutes * 60);
+        var displayModes = data && data.displayModes ? data.displayModes : { analog: false, pomodoro: true, digital: true };
+        var showSettings = data && data.showSettings !== undefined ? data.showSettings : true;
+        
         var state = {
           duration: minutes * 60,
           remaining: remaining,
-          running: false, // Will be started by load() if needed
+          running: running,
           interval: null,
           alertType: alertType,
-          minutes: minutes
+          minutes: minutes,
+          displayModes: {
+            analog: !!displayModes.analog,
+            pomodoro: !!displayModes.pomodoro,
+            digital: !!displayModes.digital
+          },
+          showSettings: showSettings
         };
 
-        // Create progress ring SVG
-        var radius = 64;
-        var circumference = 2 * Math.PI * radius;
-        var ringContainer = createElement("div", "progress-ring-container");
-        var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("class", "progress-ring");
-        svg.setAttribute("width", "160");
-        svg.setAttribute("height", "160");
-        
-        var bgCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        bgCircle.setAttribute("class", "progress-ring-bg");
-        bgCircle.setAttribute("cx", "80");
-        bgCircle.setAttribute("cy", "80");
-        bgCircle.setAttribute("r", String(radius));
-        bgCircle.setAttribute("stroke-width", "10");
-        bgCircle.setAttribute("fill", "none");
-        
-        var fillCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        fillCircle.setAttribute("class", "progress-ring-fill");
-        fillCircle.setAttribute("cx", "80");
-        fillCircle.setAttribute("cy", "80");
-        fillCircle.setAttribute("r", String(radius));
-        fillCircle.setAttribute("stroke-width", "12");
-        fillCircle.setAttribute("fill", "none");
-        fillCircle.setAttribute("stroke-dasharray", String(circumference));
-        fillCircle.setAttribute("stroke-dashoffset", "0");
-        
-        svg.appendChild(bgCircle);
-        svg.appendChild(fillCircle);
-        
-        // Display in center of ring
-        var centerDiv = createElement("div", "progress-ring-center");
-        var display = createElement("div", "big-digits");
-        centerDiv.appendChild(display);
-        
-        ringContainer.appendChild(svg);
-        ringContainer.appendChild(centerDiv);
+        var analogClock = null;
+        var analogHourHand = null;
+        var analogMinuteHand = null;
+        var pomodoroFillCircle = null;
+        var digitalDisplay = null;
+        var circumference = 2 * Math.PI * 64;
 
-        // Length control with +/- buttons
-        var lengthControl = createElement("div", "timer-length-control");
-        var lengthLabel = createElement("div", "timer-length-label");
-        lengthLabel.textContent = "Längd";
-        var lengthButtons = createElement("div", "timer-length-buttons");
-        var minusBtn = createElement("button", "timer-length-btn");
-        minusBtn.textContent = "−";
-        minusBtn.type = "button";
-        var lengthValue = createElement("div", "timer-length-value");
-        lengthValue.textContent = minutes + " min";
-        var plusBtn = createElement("button", "timer-length-btn");
-        plusBtn.textContent = "+";
-        plusBtn.type = "button";
-        
-        lengthButtons.appendChild(minusBtn);
-        lengthButtons.appendChild(lengthValue);
-        lengthButtons.appendChild(plusBtn);
-        lengthControl.appendChild(lengthLabel);
-        lengthControl.appendChild(lengthButtons);
-
-        // Toggle switches for alert options
-        var toggleGroup = createElement("div", "toggle-group");
-        
-        var soundToggle = createElement("label", "toggle-switch");
-        var soundInput = createElement("div", "toggle-switch-input");
-        if (alertType === "sound") soundInput.classList.add("active");
-        var soundLabel = createElement("div", "toggle-switch-label");
-        soundLabel.innerHTML = '<span style="font-size: 16px;">🔊</span> <span>Ljudsignal</span>';
-        soundToggle.appendChild(soundInput);
-        soundToggle.appendChild(soundLabel);
-        
-        var visualToggle = createElement("label", "toggle-switch");
-        var visualInput = createElement("div", "toggle-switch-input");
-        if (alertType === "visual") visualInput.classList.add("active");
-        var visualLabel = createElement("div", "toggle-switch-label");
-        visualLabel.innerHTML = '<span style="font-size: 16px;">💡</span> <span>Visuell puls</span>';
-        visualToggle.appendChild(visualInput);
-        visualToggle.appendChild(visualLabel);
-        
-        toggleGroup.appendChild(soundToggle);
-        toggleGroup.appendChild(visualToggle);
-
-        // Controls
-        var controls = createElement("div", "timer-controls-row");
-        var startStop = document.createElement("button");
-        startStop.setAttribute("data-state", "start");
-        startStop.innerHTML = "▶ Starta";
-        var reset = document.createElement("button");
-        reset.innerHTML = "↻ Återställ";
-
-        controls.appendChild(startStop);
-        controls.appendChild(reset);
-
-        // Layout
-        container.appendChild(ringContainer);
-        container.appendChild(lengthControl);
-        container.appendChild(toggleGroup);
-        container.appendChild(controls);
-
-        // +/- button listeners
-        minusBtn.addEventListener("click", function () {
-          if (window.isViewerMode) {
-            var widget = container.closest(".widget");
-            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-            if (!viewerControlEnabled) return;
+        function renderUI() {
+          container.innerHTML = "";
+          
+          // Header with display mode toggles and settings toggle
+          var header = createElement("div", "timer-header");
+          var displayToggles = createElement("div", "timer-display-toggles");
+          
+          var analogToggle = createElement("button", "timer-display-toggle");
+          analogToggle.type = "button";
+          if (state.displayModes.analog) analogToggle.classList.add("active");
+          analogToggle.innerHTML = "⏱️ Analog";
+          
+          var pomodoroToggle = createElement("button", "timer-display-toggle");
+          pomodoroToggle.type = "button";
+          if (state.displayModes.pomodoro) pomodoroToggle.classList.add("active");
+          pomodoroToggle.innerHTML = "🍅 Pomodoro";
+          
+          var digitalToggle = createElement("button", "timer-display-toggle");
+          digitalToggle.type = "button";
+          if (state.displayModes.digital) digitalToggle.classList.add("active");
+          digitalToggle.innerHTML = "🔢 Digital";
+          
+          displayToggles.appendChild(analogToggle);
+          displayToggles.appendChild(pomodoroToggle);
+          displayToggles.appendChild(digitalToggle);
+          
+          var settingsToggleBtn = createElement("button", "timer-settings-toggle");
+          settingsToggleBtn.type = "button";
+          settingsToggleBtn.innerHTML = "⚙️";
+          if (state.showSettings) settingsToggleBtn.classList.add("active");
+          
+          header.appendChild(displayToggles);
+          header.appendChild(settingsToggleBtn);
+          container.appendChild(header);
+          
+          // Displays container
+          var displaysContainer = createElement("div", "timer-displays-container");
+          if (!state.showSettings) displaysContainer.classList.add("compact");
+          
+          // Analog Clock
+          if (state.displayModes.analog) {
+            var analogSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            analogSVG.setAttribute("viewBox", "0 0 160 160");
+            analogSVG.setAttribute("class", "timer-analog-clock");
+            
+            var face = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            face.setAttribute("class", "timer-clock-face");
+            face.setAttribute("cx", "80");
+            face.setAttribute("cy", "80");
+            face.setAttribute("r", "70");
+            face.setAttribute("fill", "none");
+            face.setAttribute("stroke", "currentColor");
+            face.setAttribute("stroke-width", "2");
+            analogSVG.appendChild(face);
+            
+            for (var i = 0; i < 12; i++) {
+              var angle = i * 30 - 90;
+              var rad = angle * Math.PI / 180;
+              var x1 = 80 + Math.cos(rad) * 60;
+              var y1 = 80 + Math.sin(rad) * 60;
+              var x2 = 80 + Math.cos(rad) * 70;
+              var y2 = 80 + Math.sin(rad) * 70;
+              
+              var marker = document.createElementNS("http://www.w3.org/2000/svg", "line");
+              marker.setAttribute("class", "timer-clock-marker");
+              marker.setAttribute("x1", String(x1));
+              marker.setAttribute("y1", String(y1));
+              marker.setAttribute("x2", String(x2));
+              marker.setAttribute("y2", String(y2));
+              marker.setAttribute("stroke", "currentColor");
+              marker.setAttribute("stroke-width", i % 3 === 0 ? "3" : "2");
+              analogSVG.appendChild(marker);
+            }
+            
+            analogHourHand = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            analogHourHand.setAttribute("class", "timer-hour-hand");
+            analogHourHand.setAttribute("x1", "80");
+            analogHourHand.setAttribute("y1", "80");
+            analogHourHand.setAttribute("x2", "80");
+            analogHourHand.setAttribute("y2", "50");
+            analogHourHand.setAttribute("stroke", "currentColor");
+            analogHourHand.setAttribute("stroke-width", "5");
+            analogHourHand.setAttribute("stroke-linecap", "round");
+            analogSVG.appendChild(analogHourHand);
+            
+            analogMinuteHand = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            analogMinuteHand.setAttribute("class", "timer-minute-hand");
+            analogMinuteHand.setAttribute("x1", "80");
+            analogMinuteHand.setAttribute("y1", "80");
+            analogMinuteHand.setAttribute("x2", "80");
+            analogMinuteHand.setAttribute("y2", "30");
+            analogMinuteHand.setAttribute("stroke", "currentColor");
+            analogMinuteHand.setAttribute("stroke-width", "3");
+            analogMinuteHand.setAttribute("stroke-linecap", "round");
+            analogSVG.appendChild(analogMinuteHand);
+            
+            var centerDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            centerDot.setAttribute("cx", "80");
+            centerDot.setAttribute("cy", "80");
+            centerDot.setAttribute("r", "4");
+            centerDot.setAttribute("fill", "currentColor");
+            analogSVG.appendChild(centerDot);
+            
+            displaysContainer.appendChild(analogSVG);
+            analogClock = analogSVG;
           }
-          if (state.running) return;
-          state.minutes = Math.max(1, state.minutes - 1);
-          state.duration = state.minutes * 60;
-          state.remaining = state.duration;
-          lengthValue.textContent = state.minutes + " min";
-          updateDisplay();
-          if (typeof onChange === "function") onChange();
-        });
-        
-        plusBtn.addEventListener("click", function () {
-          if (window.isViewerMode) {
-            var widget = container.closest(".widget");
-            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-            if (!viewerControlEnabled) return;
+          
+          // Pomodoro Ring
+          if (state.displayModes.pomodoro) {
+            var ringContainer = createElement("div", "progress-ring-container");
+            var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("class", "progress-ring");
+            svg.setAttribute("width", "160");
+            svg.setAttribute("height", "160");
+            
+            var bgCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            bgCircle.setAttribute("class", "progress-ring-bg");
+            bgCircle.setAttribute("cx", "80");
+            bgCircle.setAttribute("cy", "80");
+            bgCircle.setAttribute("r", "64");
+            bgCircle.setAttribute("stroke-width", "10");
+            bgCircle.setAttribute("fill", "none");
+            
+            var fillCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            fillCircle.setAttribute("class", "progress-ring-fill");
+            fillCircle.setAttribute("cx", "80");
+            fillCircle.setAttribute("cy", "80");
+            fillCircle.setAttribute("r", "64");
+            fillCircle.setAttribute("stroke-width", "12");
+            fillCircle.setAttribute("fill", "none");
+            fillCircle.setAttribute("stroke-dasharray", String(circumference));
+            fillCircle.setAttribute("stroke-dashoffset", "0");
+            
+            svg.appendChild(bgCircle);
+            svg.appendChild(fillCircle);
+            
+            var centerDiv = createElement("div", "progress-ring-center");
+            var centerText = createElement("div", "big-digits");
+            centerDiv.appendChild(centerText);
+            
+            ringContainer.appendChild(svg);
+            ringContainer.appendChild(centerDiv);
+            displaysContainer.appendChild(ringContainer);
+            pomodoroFillCircle = fillCircle;
           }
-          if (state.running) return;
-          state.minutes = Math.min(99, state.minutes + 1);
-          state.duration = state.minutes * 60;
-          state.remaining = state.duration;
-          lengthValue.textContent = state.minutes + " min";
-          updateDisplay();
-          if (typeof onChange === "function") onChange();
-        });
-
-        soundToggle.addEventListener("click", function () {
-          if (window.isViewerMode) {
-            var widget = container.closest(".widget");
-            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-            if (!viewerControlEnabled) return;
+          
+          // Digital Display
+          if (state.displayModes.digital) {
+            digitalDisplay = createElement("div", "timer-digital-display");
+            displaysContainer.appendChild(digitalDisplay);
           }
-          state.alertType = "sound";
-          soundInput.classList.add("active");
-          visualInput.classList.remove("active");
-          if (typeof onChange === "function") onChange();
-        });
-
-        visualToggle.addEventListener("click", function () {
-          if (window.isViewerMode) {
-            var widget = container.closest(".widget");
-            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-            if (!viewerControlEnabled) return;
+          
+          container.appendChild(displaysContainer);
+          
+          // Settings section
+          if (state.showSettings) {
+            var settingsSection = createElement("div", "timer-settings-section");
+            
+            var lengthControl = createElement("div", "timer-length-control");
+            var lengthLabel = createElement("div", "timer-length-label");
+            lengthLabel.textContent = "Längd";
+            var lengthButtons = createElement("div", "timer-length-buttons");
+            var minusBtn = createElement("button", "timer-length-btn");
+            minusBtn.textContent = "−";
+            minusBtn.type = "button";
+            var lengthValue = createElement("div", "timer-length-value");
+            lengthValue.textContent = state.minutes + " min";
+            var plusBtn = createElement("button", "timer-length-btn");
+            plusBtn.textContent = "+";
+            plusBtn.type = "button";
+            
+            lengthButtons.appendChild(minusBtn);
+            lengthButtons.appendChild(lengthValue);
+            lengthButtons.appendChild(plusBtn);
+            lengthControl.appendChild(lengthLabel);
+            lengthControl.appendChild(lengthButtons);
+            
+            var toggleGroup = createElement("div", "toggle-group");
+            var soundToggle = createElement("label", "toggle-switch");
+            var soundInput = createElement("div", "toggle-switch-input");
+            if (state.alertType === "sound") soundInput.classList.add("active");
+            var soundLabel = createElement("div", "toggle-switch-label");
+            soundLabel.innerHTML = '<span style="font-size: 16px;">🔊</span> <span>Ljudsignal</span>';
+            soundToggle.appendChild(soundInput);
+            soundToggle.appendChild(soundLabel);
+            
+            var visualToggle = createElement("label", "toggle-switch");
+            var visualInput = createElement("div", "toggle-switch-input");
+            if (state.alertType === "visual") visualInput.classList.add("active");
+            var visualLabel = createElement("div", "toggle-switch-label");
+            visualLabel.innerHTML = '<span style="font-size: 16px;">💡</span> <span>Visuell puls</span>';
+            visualToggle.appendChild(visualInput);
+            visualToggle.appendChild(visualLabel);
+            
+            toggleGroup.appendChild(soundToggle);
+            toggleGroup.appendChild(visualToggle);
+            
+            var controls = createElement("div", "timer-controls-row");
+            var startStop = document.createElement("button");
+            startStop.setAttribute("data-state", "start");
+            startStop.innerHTML = "▶ Starta";
+            var reset = document.createElement("button");
+            reset.innerHTML = "↻ Återställ";
+            controls.appendChild(startStop);
+            controls.appendChild(reset);
+            
+            settingsSection.appendChild(lengthControl);
+            settingsSection.appendChild(toggleGroup);
+            settingsSection.appendChild(controls);
+            container.appendChild(settingsSection);
+            
+            // Event listeners for settings controls
+            minusBtn.addEventListener("click", function () {
+              if (window.isViewerMode) {
+                var widget = container.closest(".widget");
+                var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+                if (!viewerControlEnabled) return;
+              }
+              if (state.running) return;
+              state.minutes = Math.max(1, state.minutes - 1);
+              state.duration = state.minutes * 60;
+              state.remaining = state.duration;
+              lengthValue.textContent = state.minutes + " min";
+              updateAllDisplays();
+              if (typeof onChange === "function") onChange();
+            });
+            
+            plusBtn.addEventListener("click", function () {
+              if (window.isViewerMode) {
+                var widget = container.closest(".widget");
+                var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+                if (!viewerControlEnabled) return;
+              }
+              if (state.running) return;
+              state.minutes = Math.min(99, state.minutes + 1);
+              state.duration = state.minutes * 60;
+              state.remaining = state.duration;
+              lengthValue.textContent = state.minutes + " min";
+              updateAllDisplays();
+              if (typeof onChange === "function") onChange();
+            });
+            
+            soundToggle.addEventListener("click", function () {
+              if (window.isViewerMode) {
+                var widget = container.closest(".widget");
+                var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+                if (!viewerControlEnabled) return;
+              }
+              state.alertType = "sound";
+              soundInput.classList.add("active");
+              visualInput.classList.remove("active");
+              if (typeof onChange === "function") onChange();
+            });
+            
+            visualToggle.addEventListener("click", function () {
+              if (window.isViewerMode) {
+                var widget = container.closest(".widget");
+                var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+                if (!viewerControlEnabled) return;
+              }
+              state.alertType = "visual";
+              visualInput.classList.add("active");
+              soundInput.classList.remove("active");
+              if (typeof onChange === "function") onChange();
+            });
+            
+            startStop.addEventListener("click", function () {
+              if (window.isViewerMode) {
+                var widget = container.closest(".widget");
+                var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+                if (!viewerControlEnabled) {
+                  console.log("Timer control blocked - viewer control disabled");
+                  return;
+                }
+              }
+              
+              if (state.running) {
+                stopTimer();
+                if (typeof onChange === "function") onChange();
+                return;
+              }
+              
+              state.running = true;
+              state.remaining = state.duration;
+              startStop.setAttribute("data-state", "stop");
+              startStop.innerHTML = "⏸ Pausa";
+              
+              if (pomodoroFillCircle) {
+                pomodoroFillCircle.classList.remove("warning", "danger");
+              }
+              if (digitalDisplay) {
+                digitalDisplay.classList.remove("timer-pulse");
+              }
+              
+              state.interval = window.setInterval(function () {
+                state.remaining = Math.max(0, state.remaining - 1);
+                updateAllDisplays();
+                
+                if (state.remaining === 0) {
+                  stopTimer();
+                  if (state.alertType === "sound") {
+                    try {
+                      new Audio("https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3").play();
+                    } catch (error) {
+                      console.warn("Timer-ljud kunde inte spelas", error);
+                    }
+                  } else {
+                    if (digitalDisplay) digitalDisplay.classList.add("timer-pulse");
+                    if (pomodoroFillCircle) pomodoroFillCircle.classList.add("danger");
+                  }
+                }
+              }, 1000);
+              
+              if (typeof onChange === "function") onChange();
+            });
+            
+            reset.addEventListener("click", function () {
+              if (window.isViewerMode) {
+                var widget = container.closest(".widget");
+                var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+                if (!viewerControlEnabled) {
+                  console.log("Timer reset blocked - viewer control disabled");
+                  return;
+                }
+              }
+              
+              stopTimer();
+              state.duration = state.minutes * 60;
+              state.remaining = state.duration;
+              updateAllDisplays();
+              if (typeof onChange === "function") onChange();
+            });
           }
-          state.alertType = "visual";
-          visualInput.classList.add("active");
-          soundInput.classList.remove("active");
-          if (typeof onChange === "function") onChange();
-        });
+          
+          // Event listeners for display mode toggles
+          analogToggle.addEventListener("click", function () {
+            if (window.isViewerMode) {
+              var widget = container.closest(".widget");
+              var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+              if (!viewerControlEnabled) return;
+            }
+            
+            var newValue = !state.displayModes.analog;
+            if (!newValue && !state.displayModes.pomodoro && !state.displayModes.digital) return;
+            state.displayModes.analog = newValue;
+            renderUI();
+            updateAllDisplays();
+            if (typeof onChange === "function") onChange();
+          });
+          
+          pomodoroToggle.addEventListener("click", function () {
+            if (window.isViewerMode) {
+              var widget = container.closest(".widget");
+              var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+              if (!viewerControlEnabled) return;
+            }
+            
+            var newValue = !state.displayModes.pomodoro;
+            if (!newValue && !state.displayModes.analog && !state.displayModes.digital) return;
+            state.displayModes.pomodoro = newValue;
+            renderUI();
+            updateAllDisplays();
+            if (typeof onChange === "function") onChange();
+          });
+          
+          digitalToggle.addEventListener("click", function () {
+            if (window.isViewerMode) {
+              var widget = container.closest(".widget");
+              var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+              if (!viewerControlEnabled) return;
+            }
+            
+            var newValue = !state.displayModes.digital;
+            if (!newValue && !state.displayModes.analog && !state.displayModes.pomodoro) return;
+            state.displayModes.digital = newValue;
+            renderUI();
+            updateAllDisplays();
+            if (typeof onChange === "function") onChange();
+          });
+          
+          settingsToggleBtn.addEventListener("click", function () {
+            if (window.isViewerMode) {
+              var widget = container.closest(".widget");
+              var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
+              if (!viewerControlEnabled) return;
+            }
+            
+            state.showSettings = !state.showSettings;
+            renderUI();
+            updateAllDisplays();
+            if (typeof onChange === "function") onChange();
+          });
+          
+          updateAllDisplays();
+        }
 
-        function updateDisplay() {
+        function updateAllDisplays() {
           var seconds = state.running ? state.remaining : state.duration;
           var m = Math.floor(seconds / 60);
           var s = seconds % 60;
-          display.textContent = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+          var timeText = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
           
-          // Update progress ring
-          var progress = state.duration > 0 ? state.remaining / state.duration : 0;
-          var offset = circumference * (1 - progress);
-          fillCircle.setAttribute("stroke-dashoffset", String(offset));
+          if (digitalDisplay) {
+            digitalDisplay.textContent = timeText;
+          }
           
-          // Add warning class for last 10 seconds
-          if (state.remaining <= 10 && state.remaining > 0) {
-            fillCircle.classList.add("warning");
-          } else {
-            fillCircle.classList.remove("warning");
+          if (pomodoroFillCircle) {
+            var centerText = container.querySelector(".big-digits");
+            if (centerText) {
+              centerText.textContent = timeText;
+            }
+            var progress = state.duration > 0 ? state.remaining / state.duration : 0;
+            var offset = circumference * (1 - progress);
+            pomodoroFillCircle.setAttribute("stroke-dashoffset", String(offset));
+            
+            if (state.remaining <= 10 && state.remaining > 0) {
+              pomodoroFillCircle.classList.add("warning");
+            } else {
+              pomodoroFillCircle.classList.remove("warning");
+            }
+          }
+          
+          if (analogClock && analogHourHand && analogMinuteHand) {
+            var totalMinutes = state.minutes;
+            var remainingMinutes = state.remaining / 60;
+            var hourProgress = (totalMinutes - remainingMinutes) / totalMinutes;
+            var hourAngle = hourProgress * 360 - 90;
+            
+            var minuteProgress = (60 - (state.remaining % 60)) / 60;
+            var minuteAngle = minuteProgress * 360 - 90;
+            
+            analogHourHand.setAttribute("transform", "rotate(" + hourAngle + " 80 80)");
+            analogMinuteHand.setAttribute("transform", "rotate(" + minuteAngle + " 80 80)");
           }
         }
 
         function stopTimer() {
           state.running = false;
-          startStop.setAttribute("data-state", "start");
-          startStop.innerHTML = "▶ Starta";
-          display.classList.remove("timer-pulse");
-          fillCircle.classList.remove("warning", "danger");
+          var startStop = container.querySelector("button[data-state]");
+          if (startStop) {
+            startStop.setAttribute("data-state", "start");
+            startStop.innerHTML = "▶ Starta";
+          }
+          if (digitalDisplay) digitalDisplay.classList.remove("timer-pulse");
+          if (pomodoroFillCircle) pomodoroFillCircle.classList.remove("warning", "danger");
           if (state.interval) {
             window.clearInterval(state.interval);
             state.interval = null;
           }
         }
 
-        startStop.addEventListener("click", function () {
-          if (window.isViewerMode) {
-            var widget = container.closest(".widget");
-            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-            if (!viewerControlEnabled) {
-              console.log("Timer control blocked - viewer control disabled");
-              return;
-            }
-          }
-
-          if (state.running) {
-            stopTimer();
-            if (typeof onChange === "function") {
-              onChange();
-            }
-            return;
-          }
-          state.running = true;
-          state.remaining = state.duration;
-          startStop.setAttribute("data-state", "stop");
-          startStop.innerHTML = "⏸ Pausa";
-          display.classList.remove("timer-pulse");
-          fillCircle.classList.remove("warning", "danger");
-          state.interval = window.setInterval(function () {
-            state.remaining = Math.max(0, state.remaining - 1);
-            updateDisplay();
-            if (state.remaining === 0) {
-              stopTimer();
-              if (state.alertType === "sound") {
-                try {
-                  new Audio("https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3").play();
-                } catch (error) {
-                  console.warn("Timer-ljud kunde inte spelas", error);
-                }
-              } else {
-                display.classList.add("timer-pulse");
-                fillCircle.classList.add("danger");
-              }
-            }
-          }, 1000);
-          
-          // Broadcast timer start
-          if (typeof onChange === "function") {
-            onChange();
-          }
-        });
-
-        reset.addEventListener("click", function () {
-          if (window.isViewerMode) {
-            var widget = container.closest(".widget");
-            var viewerControlEnabled = widget && widget.getAttribute("data-viewer-control") === "enabled";
-            if (!viewerControlEnabled) {
-              console.log("Timer reset blocked - viewer control disabled");
-              return;
-            }
-          }
-
-          stopTimer();
-          state.duration = state.minutes * 60;
-          state.remaining = state.duration;
-          updateDisplay();
-          if (typeof onChange === "function") {
-            onChange();
-          }
-        });
-
-        updateDisplay();
+        renderUI();
         container._state = state;
       },
       save: function (widget) {
         var content = widget.querySelector(".widget-content");
         var state = content && content._state;
-        var minutes = state && state.minutes ? state.minutes : 5;
-        var alertType = state && state.alertType ? state.alertType : "sound";
-        var running = state && state.running ? true : false;
-        var remaining = state && typeof state.remaining === "number" ? state.remaining : state.duration;
+        if (!state) {
+          return { 
+            minutes: 5, 
+            alertType: "sound",
+            running: false,
+            remaining: 300,
+            displayModes: { analog: false, pomodoro: true, digital: true },
+            showSettings: true
+          };
+        }
         return { 
-          minutes: ensureNumber(minutes, 5), 
-          alertType: alertType,
-          running: running,
-          remaining: remaining
+          minutes: ensureNumber(state.minutes, 5), 
+          alertType: state.alertType || "sound",
+          running: !!state.running,
+          remaining: ensureNumber(state.remaining, state.duration || 300),
+          displayModes: state.displayModes || { analog: false, pomodoro: true, digital: true },
+          showSettings: state.showSettings !== undefined ? state.showSettings : true
         };
       },
       load: function (widget, data) {
@@ -1029,7 +1266,6 @@
           return;
         }
         
-        // Update state from synced data
         if (data.minutes !== undefined) {
           state.minutes = data.minutes;
           state.duration = data.minutes * 60;
@@ -1038,6 +1274,7 @@
             lengthValue.textContent = data.minutes + " min";
           }
         }
+        
         if (data.alertType !== undefined) {
           state.alertType = data.alertType;
           var soundInput = content.querySelector(".toggle-switch-input");
@@ -1052,17 +1289,24 @@
             }
           }
         }
+        
+        if (data.displayModes !== undefined) {
+          state.displayModes = data.displayModes || { analog: false, pomodoro: true, digital: true };
+        }
+        
+        if (data.showSettings !== undefined) {
+          state.showSettings = data.showSettings;
+        }
+        
         if (data.remaining !== undefined) {
           state.remaining = data.remaining;
         }
         
-        // Handle running state
         var wasRunning = state.running;
         var shouldBeRunning = data.running === true;
         console.log("Timer load() - wasRunning:", wasRunning, "shouldBeRunning:", shouldBeRunning);
         
         if (shouldBeRunning && !wasRunning) {
-          // Start timer
           console.log("Timer load() - STARTING timer with remaining:", state.remaining);
           state.running = true;
           var startStop = content.querySelector("button[data-state]");
@@ -1070,38 +1314,57 @@
             startStop.setAttribute("data-state", "stop");
             startStop.innerHTML = "⏸ Pausa";
           }
-          var display = content.querySelector(".big-digits");
-          var fillCircle = content.querySelector(".progress-ring-fill");
-          if (display) display.classList.remove("timer-pulse");
-          if (fillCircle) fillCircle.classList.remove("warning", "danger");
           
-          // Clear any existing interval
           if (state.interval) {
             window.clearInterval(state.interval);
           }
           
-          // Start interval
           state.interval = window.setInterval(function () {
             state.remaining = Math.max(0, state.remaining - 1);
-            var m = Math.floor(state.remaining / 60);
-            var s = state.remaining % 60;
-            if (display) {
-              display.textContent = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+            
+            var seconds = state.remaining;
+            var m = Math.floor(seconds / 60);
+            var s = seconds % 60;
+            var timeText = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+            
+            var digitalDisplay = content.querySelector(".timer-digital-display");
+            var centerText = content.querySelector(".big-digits");
+            var pomodoroFillCircle = content.querySelector(".progress-ring-fill");
+            var analogHourHand = content.querySelector(".timer-hour-hand");
+            var analogMinuteHand = content.querySelector(".timer-minute-hand");
+            
+            if (digitalDisplay) {
+              digitalDisplay.textContent = timeText;
             }
             
-            // Update progress ring
-            if (fillCircle) {
+            if (centerText) {
+              centerText.textContent = timeText;
+            }
+            
+            if (pomodoroFillCircle) {
               var circumference = 2 * Math.PI * 64;
               var progress = state.duration > 0 ? state.remaining / state.duration : 0;
               var offset = circumference * (1 - progress);
-              fillCircle.setAttribute("stroke-dashoffset", String(offset));
+              pomodoroFillCircle.setAttribute("stroke-dashoffset", String(offset));
               
-              // Add warning class for last 10 seconds
               if (state.remaining <= 10 && state.remaining > 0) {
-                fillCircle.classList.add("warning");
+                pomodoroFillCircle.classList.add("warning");
               } else {
-                fillCircle.classList.remove("warning");
+                pomodoroFillCircle.classList.remove("warning");
               }
+            }
+            
+            if (analogHourHand && analogMinuteHand) {
+              var totalMinutes = state.minutes;
+              var remainingMinutes = state.remaining / 60;
+              var hourProgress = (totalMinutes - remainingMinutes) / totalMinutes;
+              var hourAngle = hourProgress * 360 - 90;
+              
+              var minuteProgress = (60 - (state.remaining % 60)) / 60;
+              var minuteAngle = minuteProgress * 360 - 90;
+              
+              analogHourHand.setAttribute("transform", "rotate(" + hourAngle + " 80 80)");
+              analogMinuteHand.setAttribute("transform", "rotate(" + minuteAngle + " 80 80)");
             }
             
             if (state.remaining === 0) {
@@ -1110,8 +1373,8 @@
                 startStop.setAttribute("data-state", "start");
                 startStop.innerHTML = "▶ Starta";
               }
-              if (display) display.classList.remove("timer-pulse");
-              if (fillCircle) fillCircle.classList.remove("warning", "danger");
+              if (digitalDisplay) digitalDisplay.classList.remove("timer-pulse");
+              if (pomodoroFillCircle) pomodoroFillCircle.classList.remove("warning", "danger");
               if (state.interval) {
                 window.clearInterval(state.interval);
                 state.interval = null;
@@ -1124,49 +1387,71 @@
                   console.warn("Timer-ljud kunde inte spelas", error);
                 }
               } else {
-                if (display) display.classList.add("timer-pulse");
-                if (fillCircle) fillCircle.classList.add("danger");
+                if (digitalDisplay) digitalDisplay.classList.add("timer-pulse");
+                if (pomodoroFillCircle) pomodoroFillCircle.classList.add("danger");
               }
             }
           }, 1000);
         } else if (!shouldBeRunning && wasRunning) {
-          // Stop timer
           state.running = false;
           var startStop = content.querySelector("button[data-state]");
           if (startStop) {
             startStop.setAttribute("data-state", "start");
             startStop.innerHTML = "▶ Starta";
           }
-          var display = content.querySelector(".big-digits");
-          var fillCircle = content.querySelector(".progress-ring-fill");
-          if (display) display.classList.remove("timer-pulse");
-          if (fillCircle) fillCircle.classList.remove("warning", "danger");
+          var digitalDisplay = content.querySelector(".timer-digital-display");
+          var pomodoroFillCircle = content.querySelector(".progress-ring-fill");
+          if (digitalDisplay) digitalDisplay.classList.remove("timer-pulse");
+          if (pomodoroFillCircle) pomodoroFillCircle.classList.remove("warning", "danger");
           if (state.interval) {
             window.clearInterval(state.interval);
             state.interval = null;
           }
         }
         
-        // Update display
-        var display = content.querySelector(".big-digits");
-        var fillCircle = content.querySelector(".progress-ring-fill");
         var seconds = state.running ? state.remaining : state.duration;
         var m = Math.floor(seconds / 60);
         var s = seconds % 60;
-        if (display) {
-          display.textContent = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+        var timeText = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+        
+        var digitalDisplay = content.querySelector(".timer-digital-display");
+        var centerText = content.querySelector(".big-digits");
+        var pomodoroFillCircle = content.querySelector(".progress-ring-fill");
+        var analogHourHand = content.querySelector(".timer-hour-hand");
+        var analogMinuteHand = content.querySelector(".timer-minute-hand");
+        
+        if (digitalDisplay) {
+          digitalDisplay.textContent = timeText;
         }
-        if (fillCircle) {
+        
+        if (centerText) {
+          centerText.textContent = timeText;
+        }
+        
+        if (pomodoroFillCircle) {
           var circumference = 2 * Math.PI * 64;
           var progress = state.duration > 0 ? state.remaining / state.duration : 0;
           var offset = circumference * (1 - progress);
-          fillCircle.setAttribute("stroke-dashoffset", String(offset));
+          pomodoroFillCircle.setAttribute("stroke-dashoffset", String(offset));
           
           if (state.remaining <= 10 && state.remaining > 0) {
-            fillCircle.classList.add("warning");
+            pomodoroFillCircle.classList.add("warning");
           } else {
-            fillCircle.classList.remove("warning");
+            pomodoroFillCircle.classList.remove("warning");
           }
+        }
+        
+        if (analogHourHand && analogMinuteHand) {
+          var totalMinutes = state.minutes;
+          var remainingMinutes = state.remaining / 60;
+          var hourProgress = (totalMinutes - remainingMinutes) / totalMinutes;
+          var hourAngle = hourProgress * 360 - 90;
+          
+          var minuteProgress = (60 - (state.remaining % 60)) / 60;
+          var minuteAngle = minuteProgress * 360 - 90;
+          
+          analogHourHand.setAttribute("transform", "rotate(" + hourAngle + " 80 80)");
+          analogMinuteHand.setAttribute("transform", "rotate(" + minuteAngle + " 80 80)");
         }
       },
       destroy: function (widget) {
