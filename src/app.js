@@ -3469,14 +3469,21 @@
     "pace-bar": {
       title: "Lektionsprogress",
       defaults: function () {
-        return { duration: 45, milestones: [25, 50, 75, 100] };
+        return { 
+          duration: 45, 
+          milestones: [25, 50, 75, 100],
+          showControls: true,
+          syncedWithSchedule: false
+        };
       },
       render: function (container, data, onChange) {
         var state = {
           duration: data && typeof data.duration === "number" ? data.duration : 45,
           startTime: null,
           running: false,
-          interval: null
+          interval: null,
+          showControls: data && typeof data.showControls === "boolean" ? data.showControls : true,
+          syncedWithSchedule: data && typeof data.syncedWithSchedule === "boolean" ? data.syncedWithSchedule : false
         };
 
         var progressBar = createElement("div", "pace-bar-track");
@@ -3495,7 +3502,23 @@
 
         var info = createElement("div", "pace-bar-info");
 
+        var headerControls = createElement("div", "pace-bar-header");
+        var toggleControlsBtn = document.createElement("button");
+        toggleControlsBtn.type = "button";
+        toggleControlsBtn.className = "pace-bar-toggle-controls";
+        toggleControlsBtn.textContent = state.showControls ? "🔧 Dölj kontroller" : "🔧 Visa kontroller";
+        toggleControlsBtn.title = "Visa/dölj kontroller";
+        headerControls.appendChild(toggleControlsBtn);
+
+        var syncBtn = document.createElement("button");
+        syncBtn.type = "button";
+        syncBtn.className = "pace-bar-sync-btn";
+        syncBtn.textContent = "📅 Synka med schema";
+        syncBtn.title = "Synkronisera med schemawidget";
+        headerControls.appendChild(syncBtn);
+
         var durationControl = createElement("div", "pace-bar-control");
+        durationControl.style.display = state.showControls ? "block" : "none";
         var durationLabel = document.createElement("label");
         durationLabel.textContent = "Lektionstid (min): ";
         var durationInput = document.createElement("input");
@@ -3507,16 +3530,23 @@
         durationControl.appendChild(durationLabel);
 
         var controls = createElement("div", "pace-bar-controls");
+        controls.style.display = state.showControls ? "flex" : "none";
         var startBtn = document.createElement("button");
         startBtn.textContent = "Starta";
         startBtn.type = "button";
         var resetBtn = document.createElement("button");
         resetBtn.textContent = "Återställ";
         resetBtn.type = "button";
+        var addTimeBtn = document.createElement("button");
+        addTimeBtn.textContent = "+ 5 min";
+        addTimeBtn.type = "button";
+        addTimeBtn.title = "Lägg till 5 minuter";
 
         controls.appendChild(startBtn);
         controls.appendChild(resetBtn);
+        controls.appendChild(addTimeBtn);
 
+        container.appendChild(headerControls);
         container.appendChild(progressBar);
         container.appendChild(info);
         container.appendChild(durationControl);
@@ -3524,7 +3554,7 @@
 
         function updateDisplay() {
           if (!state.running || !state.startTime) {
-            info.textContent = "Klicka på Starta för att börja";
+            info.textContent = state.syncedWithSchedule ? "Synkad med schema - Klicka på Starta" : "Klicka på Starta för att börja";
             fill.style.width = "0%";
             return;
           }
@@ -3544,15 +3574,107 @@
           }
         }
 
+        toggleControlsBtn.addEventListener("click", function () {
+          state.showControls = !state.showControls;
+          toggleControlsBtn.textContent = state.showControls ? "🔧 Dölj kontroller" : "🔧 Visa kontroller";
+          durationControl.style.display = state.showControls ? "block" : "none";
+          controls.style.display = state.showControls ? "flex" : "none";
+          if (typeof onChange === "function") { onChange(); }
+        });
+
+        syncBtn.addEventListener("click", function () {
+          var allWidgets = document.querySelectorAll(".widget");
+          var timetableWidget = null;
+          
+          for (var i = 0; i < allWidgets.length; i += 1) {
+            if (allWidgets[i].getAttribute("data-type") === "timetable") {
+              timetableWidget = allWidgets[i];
+              break;
+            }
+          }
+          
+          if (!timetableWidget) {
+            alert("Ingen schemawidget hittades på skärmen. Lägg till en schemawidget först.");
+            return;
+          }
+          
+          var timetableContent = timetableWidget.querySelector(".widget-content");
+          var timetableState = timetableContent && timetableContent._state;
+          
+          if (!timetableState || !timetableState.week || !timetableState.courses) {
+            alert("Kunde inte läsa schema. Kontrollera att schemawidgeten är korrekt konfigurerad.");
+            return;
+          }
+          
+          var now = new Date();
+          var currentDay = now.getDay();
+          if (currentDay === 0) currentDay = 7;
+          currentDay = currentDay - 1;
+          
+          var currentHour = now.getHours();
+          var currentMinute = now.getMinutes();
+          var currentTimeInMinutes = currentHour * 60 + currentMinute;
+          
+          var todaySchedule = timetableState.week[currentDay];
+          if (!todaySchedule || todaySchedule.length === 0) {
+            alert("Inget schema hittat för idag.");
+            return;
+          }
+          
+          var currentLesson = null;
+          for (var j = 0; j < todaySchedule.length; j += 1) {
+            var block = todaySchedule[j];
+            var startParts = block.start.split(":");
+            var endParts = block.end.split(":");
+            var startMinutes = parseInt(startParts[0], 10) * 60 + parseInt(startParts[1], 10);
+            var endMinutes = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+            
+            if (currentTimeInMinutes >= startMinutes && currentTimeInMinutes < endMinutes) {
+              currentLesson = block;
+              currentLesson.startMinutes = startMinutes;
+              currentLesson.endMinutes = endMinutes;
+              break;
+            }
+          }
+          
+          if (!currentLesson) {
+            alert("Ingen pågående lektion hittad i schemat just nu.");
+            return;
+          }
+          
+          var lessonDuration = (currentLesson.endMinutes - currentLesson.startMinutes);
+          var elapsedMinutes = currentTimeInMinutes - currentLesson.startMinutes;
+          
+          state.duration = lessonDuration;
+          state.startTime = Date.now() - (elapsedMinutes * 60000);
+          state.syncedWithSchedule = true;
+          durationInput.value = String(lessonDuration);
+          
+          var courseName = "Lektion";
+          for (var k = 0; k < timetableState.courses.length; k += 1) {
+            if (timetableState.courses[k].id === currentLesson.courseId) {
+              courseName = timetableState.courses[k].name;
+              break;
+            }
+          }
+          
+          info.textContent = "Synkad med " + courseName + " (" + elapsedMinutes + " min redan gått)";
+          updateDisplay();
+          if (typeof onChange === "function") { onChange(); }
+        });
+
         durationInput.addEventListener("input", function () {
           state.duration = parseInt(durationInput.value, 10) || 45;
+          state.syncedWithSchedule = false;
           if (typeof onChange === "function") { onChange(); }
         });
 
         startBtn.addEventListener("click", function () {
           if (!state.running) {
             state.running = true;
-            state.startTime = Date.now();
+            if (!state.startTime) {
+              state.startTime = Date.now();
+            }
             startBtn.textContent = "Pausa";
             state.interval = window.setInterval(updateDisplay, 1000);
           } else {
@@ -3565,9 +3687,18 @@
           if (typeof onChange === "function") { onChange(); }
         });
 
+        addTimeBtn.addEventListener("click", function () {
+          state.duration += 5;
+          durationInput.value = String(state.duration);
+          state.syncedWithSchedule = false;
+          updateDisplay();
+          if (typeof onChange === "function") { onChange(); }
+        });
+
         resetBtn.addEventListener("click", function () {
           state.running = false;
           state.startTime = null;
+          state.syncedWithSchedule = false;
           startBtn.textContent = "Starta";
           if (state.interval) {
             window.clearInterval(state.interval);
@@ -3584,7 +3715,9 @@
         var state = content && content._state;
         var input = widget.querySelector("input[type='number']");
         return {
-          duration: input ? parseInt(input.value, 10) : 45
+          duration: input ? parseInt(input.value, 10) : 45,
+          showControls: state && typeof state.showControls === "boolean" ? state.showControls : true,
+          syncedWithSchedule: state && typeof state.syncedWithSchedule === "boolean" ? state.syncedWithSchedule : false
         };
       },
       destroy: function (widget) {

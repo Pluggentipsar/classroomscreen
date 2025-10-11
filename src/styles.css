@@ -2712,6 +2712,43 @@ body {
   padding-left: 6px;
 }
 
+.pace-bar-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.pace-bar-toggle-controls,
+.pace-bar-sync-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.pace-bar-toggle-controls {
+  background: rgba(107, 114, 128, 0.1);
+  color: #4B5563;
+}
+
+.pace-bar-toggle-controls:hover {
+  background: rgba(107, 114, 128, 0.2);
+  transform: translateY(-1px);
+}
+
+.pace-bar-sync-btn {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3B82F6;
+}
+
+.pace-bar-sync-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  transform: translateY(-1px);
+}
+
 .pace-bar-info {
   font-weight: 600;
   margin-bottom: 8px;
