@@ -9284,6 +9284,280 @@
     });
   }
 
+  function initScreenNavigation() {
+    var screenNavControl = document.getElementById("screenNavControl");
+    var screenNavPrev = document.getElementById("screenNavPrev");
+    var screenNavNext = document.getElementById("screenNavNext");
+    var screenNavAdd = document.getElementById("screenNavAdd");
+    var screenNavSave = document.getElementById("screenNavSave");
+    var screenNavCurrent = document.getElementById("screenNavCurrent");
+    var screenNavTotal = document.getElementById("screenNavTotal");
+
+    if (!screenNavControl || !screenNavPrev || !screenNavNext || !screenNavAdd || !screenNavSave) {
+      return;
+    }
+
+    var sessionScreens = [];
+    var currentSessionIndex = 0;
+
+    function getCurrentScreenState() {
+      var snapshot = [];
+      var widgets = manager.layer.querySelectorAll(".widget");
+      for (var i = 0; i < widgets.length; i += 1) {
+        var widget = widgets[i];
+        var entry = manager.widgets[widget.getAttribute("data-id")];
+        if (!entry) {
+          continue;
+        }
+        var widgetData = {
+          type: entry.type,
+          position: {
+            left: parseInt(widget.style.left, 10) || 20,
+            top: parseInt(widget.style.top, 10) || 20
+          },
+          data: entry.save(widget)
+        };
+
+        if (widget.style.width) {
+          widgetData.size = {
+            width: parseInt(widget.style.width, 10),
+            height: parseInt(widget.style.height, 10)
+          };
+        }
+
+        if (widget.getAttribute("data-minimized") === "true") {
+          widgetData.minimized = true;
+        }
+
+        var fontSize = widget.getAttribute("data-font-size");
+        if (fontSize) {
+          widgetData.fontSize = fontSize;
+        }
+
+        var fontOverride = widget.getAttribute("data-font-override");
+        if (fontOverride === "true") {
+          widgetData.fontOverride = true;
+        }
+
+        var syncId = entry && entry.syncId ? entry.syncId : widget.getAttribute("data-sync-id");
+        if (syncId) {
+          widgetData.syncId = syncId;
+        }
+        widgetData.viewerControlEnabled = entry && entry.viewerControlEnabled === true;
+
+        snapshot.push(widgetData);
+      }
+
+      return {
+        background: currentBackground,
+        widgets: snapshot
+      };
+    }
+
+    function loadAllScreens() {
+      var savedScreens = getAllScreens();
+      sessionScreens = [];
+
+      if (savedScreens && savedScreens.length > 0) {
+        for (var i = 0; i < savedScreens.length; i++) {
+          sessionScreens.push({
+            id: savedScreens[i].id,
+            name: savedScreens[i].name,
+            state: savedScreens[i].state,
+            saved: true
+          });
+        }
+      }
+
+      if (sessionScreens.length === 0) {
+        sessionScreens.push({
+          id: "temp-" + Date.now(),
+          name: "Screen 1",
+          state: getCurrentScreenState(),
+          saved: false
+        });
+      }
+
+      if (currentScreenId) {
+        for (var j = 0; j < sessionScreens.length; j++) {
+          if (sessionScreens[j].id === currentScreenId) {
+            currentSessionIndex = j;
+            break;
+          }
+        }
+      }
+    }
+
+    function saveCurrentSessionState() {
+      if (sessionScreens.length > 0 && currentSessionIndex >= 0 && currentSessionIndex < sessionScreens.length) {
+        var currentState = getCurrentScreenState();
+        sessionScreens[currentSessionIndex].state = currentState;
+
+        if (sessionScreens[currentSessionIndex].saved) {
+          saveScreen(sessionScreens[currentSessionIndex].id, currentState);
+        }
+      }
+    }
+
+    function loadSessionState(screenData) {
+      if (!screenData || !screenData.state) return;
+
+      clearAllWidgets();
+
+      if (screenData.state.background) {
+        setBackground(screenData.state.background, { skipPersist: true, skipHighlight: true });
+      }
+
+      if (screenData.state.widgets && screenData.state.widgets.length) {
+        for (var i = 0; i < screenData.state.widgets.length; i++) {
+          var item = screenData.state.widgets[i];
+          manager.createWidget(item.type, item.data, item.position, item.size, item.minimized, item.fontSize, item.fontOverride, item.syncId, item.viewerControlEnabled);
+        }
+      }
+
+      if (screenData.saved) {
+        currentScreenId = screenData.id;
+        try {
+          window.localStorage.setItem(CURRENT_SCREEN_KEY, screenData.id);
+        } catch (error) {
+          console.error("Kunde inte spara aktuell screen", error);
+        }
+      } else {
+        currentScreenId = null;
+      }
+    }
+
+    function updateNavigationUI() {
+      screenNavCurrent.textContent = (currentSessionIndex + 1).toString();
+      screenNavTotal.textContent = sessionScreens.length.toString();
+
+      screenNavPrev.disabled = currentSessionIndex === 0;
+      screenNavNext.disabled = currentSessionIndex >= sessionScreens.length - 1;
+    }
+
+    function navigateToPrevSession() {
+      if (currentSessionIndex > 0) {
+        saveCurrentSessionState();
+        currentSessionIndex--;
+        loadSessionState(sessionScreens[currentSessionIndex]);
+        updateNavigationUI();
+      }
+    }
+
+    function navigateToNextSession() {
+      if (currentSessionIndex < sessionScreens.length - 1) {
+        saveCurrentSessionState();
+        currentSessionIndex++;
+        loadSessionState(sessionScreens[currentSessionIndex]);
+        updateNavigationUI();
+      }
+    }
+
+    function addNewSessionScreen() {
+      saveCurrentSessionState();
+
+      var newScreen = {
+        id: "temp-" + Date.now(),
+        name: "Screen " + (sessionScreens.length + 1),
+        state: {
+          background: currentBackground,
+          widgets: []
+        },
+        saved: false
+      };
+
+      sessionScreens.push(newScreen);
+      currentSessionIndex = sessionScreens.length - 1;
+
+      loadSessionState(newScreen);
+      updateNavigationUI();
+    }
+
+    function saveCurrentSessionScreen() {
+      saveCurrentSessionState();
+
+      var currentScreen = sessionScreens[currentSessionIndex];
+      var defaultName = currentScreen.name || "Screen " + (currentSessionIndex + 1);
+      var screenName = prompt("Ge denna screen ett namn:", defaultName);
+
+      if (screenName && screenName.trim()) {
+        if (currentScreen.saved) {
+          saveScreen(currentScreen.id, currentScreen.state);
+          var screens = getAllScreens();
+          for (var i = 0; i < screens.length; i++) {
+            if (screens[i].id === currentScreen.id) {
+              screens[i].name = screenName.trim();
+              screens[i].updatedAt = new Date().toISOString();
+              break;
+            }
+          }
+          try {
+            window.localStorage.setItem(SCREENS_KEY, JSON.stringify(screens));
+          } catch (error) {
+            console.error("Kunde inte uppdatera screen", error);
+          }
+          currentScreen.name = screenName.trim();
+          alert("Screen \"" + screenName.trim() + "\" uppdaterad!");
+        } else {
+          var newScreen = createScreen(screenName.trim(), "");
+          if (newScreen) {
+            saveScreen(newScreen.id, currentScreen.state);
+            
+            currentScreen.saved = true;
+            currentScreen.id = newScreen.id;
+            currentScreen.name = screenName.trim();
+            
+            currentScreenId = newScreen.id;
+            try {
+              window.localStorage.setItem(CURRENT_SCREEN_KEY, newScreen.id);
+            } catch (error) {
+              console.error("Kunde inte spara aktuell screen", error);
+            }
+            
+            loadAllScreens();
+            updateNavigationUI();
+            
+            alert("Screen \"" + screenName.trim() + "\" sparad!");
+          }
+        }
+
+        if (libraryDialog && typeof window.refreshLibraryGrid === "function") {
+          window.refreshLibraryGrid();
+        }
+      }
+    }
+
+    screenNavPrev.addEventListener("click", navigateToPrevSession);
+    screenNavNext.addEventListener("click", navigateToNextSession);
+    screenNavAdd.addEventListener("click", addNewSessionScreen);
+    screenNavSave.addEventListener("click", saveCurrentSessionScreen);
+
+    document.addEventListener("keydown", function(e) {
+      if (e.ctrlKey || e.metaKey) return;
+
+      var activeElement = document.activeElement;
+      if (activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA" || activeElement.isContentEditable)) {
+        return;
+      }
+
+      if (e.key === "ArrowLeft" && !currentLessonId) {
+        e.preventDefault();
+        navigateToPrevSession();
+      } else if (e.key === "ArrowRight" && !currentLessonId) {
+        e.preventDefault();
+        navigateToNextSession();
+      }
+    });
+
+    loadAllScreens();
+    updateNavigationUI();
+
+    window.refreshScreenNavigation = function() {
+      loadAllScreens();
+      updateNavigationUI();
+    };
+  }
+
   function initApp() {
     manager = new WidgetManager(widgetLayer);
     setBackground(currentBackground, { skipPersist: true, skipHighlight: true });
@@ -9300,6 +9574,7 @@
     initUIToggleFab();
     initWidgetContextMenu();
     initHighContrast();
+    initScreenNavigation();
     
     // Initialize LiveSync for cross-device synchronization
     initLiveSync();

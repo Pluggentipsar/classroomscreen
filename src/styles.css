@@ -6857,3 +6857,134 @@ body {
   padding: 40px 20px;
   font-size: 15px;
 }
+
+.screen-nav-control {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 24px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 900;
+  transition: all 0.3s ease;
+  opacity: 0.85;
+}
+
+.screen-nav-control:hover {
+  opacity: 1;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.ui-hidden .screen-nav-control {
+  transform: translateY(100px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.screen-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.screen-nav-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  transform: scale(1.1);
+}
+
+.screen-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.screen-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.screen-nav-btn.screen-nav-add {
+  font-size: 20px;
+  color: #f093fb;
+}
+
+.screen-nav-btn.screen-nav-add:hover {
+  background: rgba(240, 147, 251, 0.15);
+}
+
+.screen-nav-btn.screen-nav-save {
+  font-size: 18px;
+  color: #4CAF50;
+}
+
+.screen-nav-btn.screen-nav-save:hover {
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.screen-nav-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  min-width: 40px;
+  user-select: none;
+}
+
+@media (max-width: 768px) {
+  .screen-nav-control {
+    bottom: 16px;
+    right: 16px;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .screen-nav-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .screen-nav-btn.screen-nav-add {
+    font-size: 18px;
+  }
+
+  .screen-nav-indicator {
+    font-size: 13px;
+    min-width: 35px;
+  }
+}
+
+.high-contrast-mode .screen-nav-control {
+  background: rgba(0, 0, 0, 0.95);
+  color: white;
+  border: 2px solid white;
+}
+
+.high-contrast-mode .screen-nav-btn {
+  color: white;
+}
+
+.high-contrast-mode .screen-nav-indicator {
+  color: white;
+}
+
+.high-contrast-mode .screen-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
