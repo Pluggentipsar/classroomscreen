@@ -4900,7 +4900,8 @@
               blocks: []
             }
           ],
-          media: {}
+          media: {},
+          allowStudentNavigation: true
         };
       },
       render: function (container, data, onChange, widget) {
@@ -4915,7 +4916,8 @@
             }
           ],
           media: data && data.media ? data.media : {},
-          presentationMode: false
+          presentationMode: false,
+          allowStudentNavigation: typeof data.allowStudentNavigation === "boolean" ? data.allowStudentNavigation : true
         };
 
         var wrapper = createElement("div", "presentation-wrapper");
@@ -4923,6 +4925,34 @@
         var slidesList = createElement("div", "presentation-slides-list");
         var canvas = createElement("div", "presentation-canvas");
         var toolbar = createElement("div", "presentation-toolbar");
+
+        function broadcastPresentationState() {
+          if (window.isViewerMode) return;
+          
+          var syncId = widget.getAttribute("data-sync-id");
+          if (!syncId) return;
+
+          var roomCode = getActiveRoomCode ? getActiveRoomCode() : null;
+          if (!roomCode) return;
+
+          var message = {
+            type: "presentation-update",
+            widgetId: syncId,
+            currentSlide: state.currentSlide,
+            presentationMode: state.presentationMode,
+            allowStudentNavigation: state.allowStudentNavigation
+          };
+
+          if (window.liveSyncClient && window.liveSyncClient.isConnected) {
+            window.liveSyncClient.send(message);
+          }
+
+          try {
+            var channel = new BroadcastChannel("classroom-room-" + roomCode);
+            channel.postMessage(message);
+            channel.close();
+          } catch (e) {}
+        }
 
         function renderSlidesList() {
           clearChildren(slidesList);
@@ -5430,6 +5460,22 @@
             toggleMaximizeWidget();
           });
 
+          if (!window.isViewerMode) {
+            var studentNavBtn = document.createElement("button");
+            studentNavBtn.type = "button";
+            studentNavBtn.className = "student-nav-toggle-btn";
+            studentNavBtn.innerHTML = state.allowStudentNavigation ? "👥 Elevnavigering På" : "👤 Elevnavigering Av";
+            studentNavBtn.title = state.allowStudentNavigation ? "Elever kan navigera själva - Klicka för att stänga av" : "Elever följer din vy - Klicka för att tillåta elevnavigering";
+            studentNavBtn.addEventListener("click", function () {
+              state.allowStudentNavigation = !state.allowStudentNavigation;
+              studentNavBtn.innerHTML = state.allowStudentNavigation ? "👥 Elevnavigering På" : "👤 Elevnavigering Av";
+              studentNavBtn.title = state.allowStudentNavigation ? "Elever kan navigera själva - Klicka för att stänga av" : "Elever följer din vy - Klicka för att tillåta elevnavigering";
+              broadcastPresentationState();
+              onChange();
+            });
+            toolbar.appendChild(studentNavBtn);
+          }
+
           var presentBtn = document.createElement("button");
           presentBtn.type = "button";
           presentBtn.className = "present-btn";
@@ -5454,6 +5500,7 @@
           state.presentationMode = true;
           wrapper.classList.add("presentation-mode");
           renderPresentationView();
+          broadcastPresentationState();
         }
 
         function exitPresentationMode() {
@@ -5469,6 +5516,7 @@
           renderSlidesList();
           renderCanvas();
           renderToolbar();
+          broadcastPresentationState();
         }
 
         function renderPresentationView() {
@@ -5536,6 +5584,15 @@
           presentView.appendChild(slideContent);
 
           var presentControls = createElement("div", "presentation-controls");
+          
+          var viewerControlEnabled = widget.getAttribute("data-viewer-control") === "enabled";
+          var canNavigate = !window.isViewerMode || (viewerControlEnabled && state.allowStudentNavigation);
+          
+          if (!canNavigate) {
+            presentControls.style.pointerEvents = "none";
+            presentControls.style.opacity = "0.5";
+          }
+          
           var slideCounter = createElement("div", "slide-counter");
           slideCounter.textContent = (state.currentSlide + 1) + " / " + state.slides.length;
 
@@ -5546,6 +5603,7 @@
             if (state.currentSlide > 0) {
               state.currentSlide -= 1;
               renderPresentationView();
+              broadcastPresentationState();
               if (typeof onChange === "function") { onChange(); }
             }
           });
@@ -5557,6 +5615,7 @@
             if (state.currentSlide < state.slides.length - 1) {
               state.currentSlide += 1;
               renderPresentationView();
+              broadcastPresentationState();
               if (typeof onChange === "function") { onChange(); }
             }
           });
@@ -5572,6 +5631,13 @@
           presentControls.appendChild(slideCounter);
           presentControls.appendChild(nextBtn);
           presentControls.appendChild(exitBtn);
+
+          if (!canNavigate && window.isViewerMode) {
+            var lockMsg = createElement("div", "student-lock-message");
+            lockMsg.textContent = "Läraren styr presentationen";
+            lockMsg.style.cssText = "position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:8px 16px;border-radius:8px;font-size:14px;";
+            presentControls.appendChild(lockMsg);
+          }
 
           presentView.appendChild(presentControls);
 
@@ -5617,13 +5683,18 @@
           wrapper.appendChild(presentView);
 
           var keyHandler = function (e) {
-            if (e.key === "ArrowLeft" && state.currentSlide > 0) {
+            var viewerControlEnabled = widget.getAttribute("data-viewer-control") === "enabled";
+            var canNavigate = !window.isViewerMode || (viewerControlEnabled && state.allowStudentNavigation);
+            
+            if (canNavigate && e.key === "ArrowLeft" && state.currentSlide > 0) {
               state.currentSlide -= 1;
               renderPresentationView();
+              broadcastPresentationState();
               if (typeof onChange === "function") { onChange(); }
-            } else if (e.key === "ArrowRight" && state.currentSlide < state.slides.length - 1) {
+            } else if (canNavigate && e.key === "ArrowRight" && state.currentSlide < state.slides.length - 1) {
               state.currentSlide += 1;
               renderPresentationView();
+              broadcastPresentationState();
               if (typeof onChange === "function") { onChange(); }
             } else if (e.key === "Escape") {
               exitPresentationMode();
@@ -5692,6 +5763,63 @@
         document.addEventListener("keydown", editKeyHandler);
         wrapper._editKeyHandler = editKeyHandler;
 
+        function handlePresentationUpdate(updateData) {
+          if (!window.isViewerMode) return;
+          if (!updateData || typeof updateData !== "object") return;
+          
+          var viewerControlEnabled = widget.getAttribute("data-viewer-control") === "enabled";
+          var canControl = viewerControlEnabled && updateData.allowStudentNavigation;
+          
+          if (!canControl) {
+            if (typeof updateData.currentSlide === "number" && updateData.currentSlide !== state.currentSlide) {
+              state.currentSlide = Math.max(0, Math.min(state.slides.length - 1, updateData.currentSlide));
+              
+              if (state.presentationMode) {
+                renderPresentationView();
+              } else {
+                renderSlidesList();
+                renderCanvas();
+              }
+            }
+            
+            if (typeof updateData.presentationMode === "boolean" && updateData.presentationMode !== state.presentationMode) {
+              if (updateData.presentationMode && !state.presentationMode) {
+                enterPresentationMode();
+              } else if (!updateData.presentationMode && state.presentationMode) {
+                exitPresentationMode();
+              }
+            }
+          }
+          
+          if (typeof updateData.allowStudentNavigation === "boolean") {
+            state.allowStudentNavigation = updateData.allowStudentNavigation;
+            
+            if (state.presentationMode) {
+              var controls = wrapper.querySelector(".presentation-controls");
+              if (controls) {
+                var canNavigate = viewerControlEnabled && state.allowStudentNavigation;
+                controls.style.pointerEvents = canNavigate ? "auto" : "none";
+                controls.style.opacity = canNavigate ? "1" : "0.5";
+                
+                if (!canNavigate) {
+                  var lockMsg = controls.querySelector(".student-lock-message");
+                  if (!lockMsg) {
+                    lockMsg = createElement("div", "student-lock-message");
+                    lockMsg.textContent = "Läraren styr presentationen";
+                    lockMsg.style.cssText = "position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:8px 16px;border-radius:8px;font-size:14px;";
+                    controls.appendChild(lockMsg);
+                  }
+                } else {
+                  var lockMsg = controls.querySelector(".student-lock-message");
+                  if (lockMsg) lockMsg.remove();
+                }
+              }
+            }
+          }
+        }
+
+        widget._handlePresentationUpdate = handlePresentationUpdate;
+
         container._state = state;
       },
       save: function (widget) {
@@ -5708,14 +5836,16 @@
                 blocks: []
               }
             ],
-            media: {}
+            media: {},
+            allowStudentNavigation: true
           };
         }
         return {
           title: ensureString(state.title, "Min presentation"),
           currentSlide: typeof state.currentSlide === "number" ? state.currentSlide : 0,
           slides: state.slides || [],
-          media: state.media || {}
+          media: state.media || {},
+          allowStudentNavigation: typeof state.allowStudentNavigation === "boolean" ? state.allowStudentNavigation : true
         };
       },
       destroy: function (widget) {
@@ -8524,6 +8654,23 @@
           // Apply widget state update
           if (window.updateWidgetFromSync) {
             window.updateWidgetFromSync(data.widgetId, data.widgetType, data.payload);
+          }
+          break;
+
+        case 'presentation-update':
+          // Update presentation state
+          if (data.widgetId && window.isViewerMode) {
+            var widgets = document.querySelectorAll('.widget[data-sync-id="' + data.widgetId + '"]');
+            for (var i = 0; i < widgets.length; i++) {
+              var widget = widgets[i];
+              if (widget._handlePresentationUpdate) {
+                widget._handlePresentationUpdate({
+                  currentSlide: data.currentSlide,
+                  presentationMode: data.presentationMode,
+                  allowStudentNavigation: data.allowStudentNavigation
+                });
+              }
+            }
           }
           break;
 

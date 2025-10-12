@@ -4206,6 +4206,25 @@ body {
   box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
+.student-nav-toggle-btn {
+  padding: 10px 16px;
+  border: 1px solid rgba(29, 33, 37, 0.15);
+  background: white;
+  color: #1d2125;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.student-nav-toggle-btn:hover {
+  border-color: var(--accent);
+  background: rgba(63, 81, 181, 0.08);
+  transform: translateY(-1px);
+}
+
 /* Presentation Mode */
 .presentation-wrapper.presentation-mode {
   position: fixed;

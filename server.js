@@ -181,7 +181,7 @@ wss.on('connection', (ws) => {
 
     // Handle messages from HOST
     if (meta.role === 'host') {
-      const broadcastToViewers = ['widget-control', 'widget-update', 'screen-change', 'widgets-sync', 'layout-reset'];
+      const broadcastToViewers = ['widget-control', 'widget-update', 'screen-change', 'widgets-sync', 'layout-reset', 'presentation-update'];
       
       if (broadcastToViewers.includes(type)) {
         // Broadcast to all viewers

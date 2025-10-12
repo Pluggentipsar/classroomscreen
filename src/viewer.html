@@ -507,6 +507,21 @@
                 if (window.updateWidgetFromSync) {
                   window.updateWidgetFromSync(data.widgetId, data.widgetType, data.widgetData);
                 }
+              } else if (data.type === "presentation-update") {
+                // Update presentation state
+                if (data.widgetId) {
+                  var widgets = document.querySelectorAll('.widget[data-sync-id="' + data.widgetId + '"]');
+                  for (var i = 0; i < widgets.length; i++) {
+                    var widget = widgets[i];
+                    if (widget._handlePresentationUpdate) {
+                      widget._handlePresentationUpdate({
+                        currentSlide: data.currentSlide,
+                        presentationMode: data.presentationMode,
+                        allowStudentNavigation: data.allowStudentNavigation
+                      });
+                    }
+                  }
+                }
               } else if (data.type === "room-closed") {
                 alert("Lektionen har avslutats av läraren");
                 window.location.href = "/join.html";
