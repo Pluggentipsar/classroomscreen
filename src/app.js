@@ -5059,7 +5059,7 @@
               slideNumber.textContent = String(index + 1);
 
               var slidePreview = createElement("div", "slide-preview");
-              slidePreview.textContent = slide.blocks.length + " block" + (slide.blocks.length !== 1 ? "s" : "");
+              slidePreview.textContent = slide.title || "Slide " + (index + 1);
 
               var slideActions = createElement("div", "slide-actions");
 
@@ -5161,14 +5161,26 @@
 
           var slideSettings = createElement("div", "slide-settings");
 
+          var slideTitleInput = document.createElement("input");
+          slideTitleInput.type = "text";
+          slideTitleInput.className = "slide-title-input";
+          slideTitleInput.value = slide.title || "";
+          slideTitleInput.placeholder = "Slide-titel...";
+          slideTitleInput.addEventListener("input", function () {
+            slide.title = slideTitleInput.value;
+            renderSlidesList();
+            onChange();
+          });
+          slideSettings.appendChild(slideTitleInput);
+
           var bgLabel = document.createElement("label");
-          bgLabel.textContent = "Slide-bakgrund: ";
+          bgLabel.textContent = "Bakgrund: ";
           bgLabel.className = "slide-setting-label";
 
           var bgColorInput = document.createElement("input");
           bgColorInput.type = "color";
           bgColorInput.className = "slide-bg-color";
-          bgColorInput.value = slide.background.value || "#ffffff";
+          bgColorInput.value = slide.background.value || slide.background.type === "color" ? (slide.background.value || "#0f172a") : "#0f172a";
           bgColorInput.addEventListener("input", function () {
             slide.background = { type: "color", value: bgColorInput.value };
             slideView.style.background = bgColorInput.value;
@@ -5177,6 +5189,18 @@
 
           bgLabel.appendChild(bgColorInput);
           slideSettings.appendChild(bgLabel);
+
+          var notesArea = document.createElement("textarea");
+          notesArea.className = "slide-notes-input";
+          notesArea.value = slide.notes || "";
+          notesArea.placeholder = "Speaker notes (endast synliga för lärare)...";
+          notesArea.rows = 2;
+          notesArea.addEventListener("input", function () {
+            slide.notes = notesArea.value;
+            onChange();
+          });
+          slideSettings.appendChild(notesArea);
+
           canvas.appendChild(slideSettings);
 
           var addBlockBtn = document.createElement("button");
@@ -5241,7 +5265,8 @@
                                    block.type === "text" ? "Text" :
                                    block.type === "list" ? "Lista" :
                                    block.type === "image" ? "Bild" :
-                                   block.type === "youtube" ? "YouTube" : "Block";
+                                   block.type === "youtube" ? "YouTube" :
+                                   block.type === "columns" ? "Kolumner" : "Block";
 
           var blockActions = createElement("div", "block-actions");
 
@@ -5276,6 +5301,8 @@
             });
             blockContent.appendChild(headingInput);
 
+            var controlsRow = createElement("div", "block-controls-row");
+
             var sizeSelect = document.createElement("select");
             sizeSelect.className = "heading-size";
             var sizes = ["S", "M", "L", "XL", "XXL"];
@@ -5293,7 +5320,47 @@
               renderCanvas();
               onChange();
             });
-            blockContent.appendChild(sizeSelect);
+            controlsRow.appendChild(sizeSelect);
+
+            var alignSelect = document.createElement("select");
+            alignSelect.className = "align-select";
+            var aligns = [
+              { value: "left", label: "← Vänster" },
+              { value: "center", label: "↔ Center" }
+            ];
+            for (var a = 0; a < aligns.length; a += 1) {
+              var opt = document.createElement("option");
+              opt.value = aligns[a].value;
+              opt.textContent = aligns[a].label;
+              if (block.align === aligns[a].value) {
+                opt.selected = true;
+              }
+              alignSelect.appendChild(opt);
+            }
+            alignSelect.addEventListener("change", function () {
+              block.align = alignSelect.value;
+              renderCanvas();
+              onChange();
+            });
+            controlsRow.appendChild(alignSelect);
+
+            var revealCheckbox = document.createElement("input");
+            revealCheckbox.type = "checkbox";
+            revealCheckbox.id = "reveal-" + blockIndex;
+            revealCheckbox.checked = block.reveal || false;
+            revealCheckbox.addEventListener("change", function () {
+              block.reveal = revealCheckbox.checked;
+              renderCanvas();
+              onChange();
+            });
+            var revealLabel = document.createElement("label");
+            revealLabel.htmlFor = "reveal-" + blockIndex;
+            revealLabel.textContent = "Reveal-animation";
+            revealLabel.style.marginLeft = "10px";
+            controlsRow.appendChild(revealCheckbox);
+            controlsRow.appendChild(revealLabel);
+
+            blockContent.appendChild(controlsRow);
           } else if (block.type === "text") {
             var textArea = document.createElement("textarea");
             textArea.className = "text-input";
@@ -5305,6 +5372,71 @@
               onChange();
             });
             blockContent.appendChild(textArea);
+
+            var controlsRow = createElement("div", "block-controls-row");
+
+            var sizeSelect = document.createElement("select");
+            sizeSelect.className = "text-size";
+            var sizes = [
+              { value: "sm", label: "Liten" },
+              { value: "md", label: "Medium" },
+              { value: "lg", label: "Stor" }
+            ];
+            for (var s = 0; s < sizes.length; s += 1) {
+              var opt = document.createElement("option");
+              opt.value = sizes[s].value;
+              opt.textContent = sizes[s].label;
+              if (block.size === sizes[s].value) {
+                opt.selected = true;
+              }
+              sizeSelect.appendChild(opt);
+            }
+            sizeSelect.addEventListener("change", function () {
+              block.size = sizeSelect.value;
+              renderCanvas();
+              onChange();
+            });
+            controlsRow.appendChild(sizeSelect);
+
+            var alignSelect = document.createElement("select");
+            alignSelect.className = "align-select";
+            var aligns = [
+              { value: "left", label: "← Vänster" },
+              { value: "center", label: "↔ Center" }
+            ];
+            for (var a = 0; a < aligns.length; a += 1) {
+              var opt = document.createElement("option");
+              opt.value = aligns[a].value;
+              opt.textContent = aligns[a].label;
+              if (block.align === aligns[a].value) {
+                opt.selected = true;
+              }
+              alignSelect.appendChild(opt);
+            }
+            alignSelect.addEventListener("change", function () {
+              block.align = alignSelect.value;
+              renderCanvas();
+              onChange();
+            });
+            controlsRow.appendChild(alignSelect);
+
+            var revealCheckbox = document.createElement("input");
+            revealCheckbox.type = "checkbox";
+            revealCheckbox.id = "reveal-" + blockIndex;
+            revealCheckbox.checked = block.reveal || false;
+            revealCheckbox.addEventListener("change", function () {
+              block.reveal = revealCheckbox.checked;
+              renderCanvas();
+              onChange();
+            });
+            var revealLabel = document.createElement("label");
+            revealLabel.htmlFor = "reveal-" + blockIndex;
+            revealLabel.textContent = "Reveal-animation";
+            revealLabel.style.marginLeft = "10px";
+            controlsRow.appendChild(revealCheckbox);
+            controlsRow.appendChild(revealLabel);
+
+            blockContent.appendChild(controlsRow);
           } else if (block.type === "list") {
             var listArea = document.createElement("textarea");
             listArea.className = "list-input";
@@ -5319,19 +5451,41 @@
             });
             blockContent.appendChild(listArea);
 
+            var controlsRow = createElement("div", "block-controls-row");
+
             var orderedCheckbox = document.createElement("input");
             orderedCheckbox.type = "checkbox";
             orderedCheckbox.id = "ordered-" + blockIndex;
             orderedCheckbox.checked = block.ordered || false;
             orderedCheckbox.addEventListener("change", function () {
               block.ordered = orderedCheckbox.checked;
+              renderCanvas();
               onChange();
             });
             var orderedLabel = document.createElement("label");
             orderedLabel.htmlFor = "ordered-" + blockIndex;
-            orderedLabel.textContent = "Numrerad lista";
-            blockContent.appendChild(orderedCheckbox);
-            blockContent.appendChild(orderedLabel);
+            orderedLabel.textContent = "Numrerad";
+            orderedLabel.style.marginRight = "10px";
+            controlsRow.appendChild(orderedCheckbox);
+            controlsRow.appendChild(orderedLabel);
+
+            var revealItemsCheckbox = document.createElement("input");
+            revealItemsCheckbox.type = "checkbox";
+            revealItemsCheckbox.id = "revealItems-" + blockIndex;
+            revealItemsCheckbox.checked = block.revealItems || false;
+            revealItemsCheckbox.addEventListener("change", function () {
+              block.revealItems = revealItemsCheckbox.checked;
+              renderCanvas();
+              onChange();
+            });
+            var revealItemsLabel = document.createElement("label");
+            revealItemsLabel.htmlFor = "revealItems-" + blockIndex;
+            revealItemsLabel.textContent = "Reveal en punkt i taget";
+            revealItemsLabel.style.marginRight = "10px";
+            controlsRow.appendChild(revealItemsCheckbox);
+            controlsRow.appendChild(revealItemsLabel);
+
+            blockContent.appendChild(controlsRow);
           } else if (block.type === "image") {
             var imageUrlInput = document.createElement("input");
             imageUrlInput.type = "text";
@@ -5425,6 +5579,48 @@
               imgPreview.alt = "Förhandsvisning";
               blockContent.appendChild(imgPreview);
             }
+
+            var controlsRow = createElement("div", "block-controls-row");
+
+            var fitSelect = document.createElement("select");
+            fitSelect.className = "fit-select";
+            var fits = [
+              { value: "contain", label: "Anpassa (Contain)" },
+              { value: "cover", label: "Fyll (Cover)" }
+            ];
+            for (var f = 0; f < fits.length; f += 1) {
+              var opt = document.createElement("option");
+              opt.value = fits[f].value;
+              opt.textContent = fits[f].label;
+              if (block.fit === fits[f].value) {
+                opt.selected = true;
+              }
+              fitSelect.appendChild(opt);
+            }
+            fitSelect.addEventListener("change", function () {
+              block.fit = fitSelect.value;
+              renderCanvas();
+              onChange();
+            });
+            controlsRow.appendChild(fitSelect);
+
+            var revealCheckbox = document.createElement("input");
+            revealCheckbox.type = "checkbox";
+            revealCheckbox.id = "reveal-" + blockIndex;
+            revealCheckbox.checked = block.reveal || false;
+            revealCheckbox.addEventListener("change", function () {
+              block.reveal = revealCheckbox.checked;
+              renderCanvas();
+              onChange();
+            });
+            var revealLabel = document.createElement("label");
+            revealLabel.htmlFor = "reveal-" + blockIndex;
+            revealLabel.textContent = "Reveal-animation";
+            revealLabel.style.marginLeft = "10px";
+            controlsRow.appendChild(revealCheckbox);
+            controlsRow.appendChild(revealLabel);
+
+            blockContent.appendChild(controlsRow);
           } else if (block.type === "youtube") {
             var ytUrlInput = document.createElement("input");
             ytUrlInput.type = "text";
@@ -5437,6 +5633,69 @@
               onChange();
             });
             blockContent.appendChild(ytUrlInput);
+
+            var controlsRow = createElement("div", "block-controls-row");
+
+            var revealCheckbox = document.createElement("input");
+            revealCheckbox.type = "checkbox";
+            revealCheckbox.id = "reveal-" + blockIndex;
+            revealCheckbox.checked = block.reveal || false;
+            revealCheckbox.addEventListener("change", function () {
+              block.reveal = revealCheckbox.checked;
+              renderCanvas();
+              onChange();
+            });
+            var revealLabel = document.createElement("label");
+            revealLabel.htmlFor = "reveal-" + blockIndex;
+            revealLabel.textContent = "Reveal-animation";
+            controlsRow.appendChild(revealCheckbox);
+            controlsRow.appendChild(revealLabel);
+
+            blockContent.appendChild(controlsRow);
+          } else if (block.type === "columns") {
+            var columnsContainer = createElement("div", "columns-container");
+
+            var controlsRow = createElement("div", "block-controls-row");
+
+            var ratioSelect = document.createElement("select");
+            ratioSelect.className = "ratio-select";
+            var ratios = [
+              { value: "50-50", label: "50/50" },
+              { value: "60-40", label: "60/40" },
+              { value: "40-60", label: "40/60" }
+            ];
+            for (var r = 0; r < ratios.length; r += 1) {
+              var opt = document.createElement("option");
+              opt.value = ratios[r].value;
+              opt.textContent = ratios[r].label;
+              if (block.ratio === ratios[r].value) {
+                opt.selected = true;
+              }
+              ratioSelect.appendChild(opt);
+            }
+            ratioSelect.addEventListener("change", function () {
+              block.ratio = ratioSelect.value;
+              renderCanvas();
+              onChange();
+            });
+            controlsRow.appendChild(ratioSelect);
+
+            blockContent.appendChild(controlsRow);
+
+            var colsRow = createElement("div", "columns-row");
+
+            if (Array.isArray(block.cols) && block.cols.length === 2) {
+              var col1Container = createElement("div", "column-container");
+              col1Container.innerHTML = "<strong>Kolumn 1:</strong> " + (block.cols[0].type === "heading" ? "Rubrik" : block.cols[0].type === "text" ? "Text" : block.cols[0].type === "list" ? "Lista" : block.cols[0].type === "image" ? "Bild" : "Block");
+              colsRow.appendChild(col1Container);
+
+              var col2Container = createElement("div", "column-container");
+              col2Container.innerHTML = "<strong>Kolumn 2:</strong> " + (block.cols[1].type === "heading" ? "Rubrik" : block.cols[1].type === "text" ? "Text" : block.cols[1].type === "list" ? "Lista" : block.cols[1].type === "image" ? "Bild" : "Block");
+              colsRow.appendChild(col2Container);
+            }
+
+            blockContent.appendChild(colsRow);
+            blockContent.innerHTML += "<p style='font-size:12px;color:#666;margin-top:8px;'>⚠️ Kolumner redigeras i presentationsläge</p>";
           }
 
           blockEl.appendChild(blockContent);
