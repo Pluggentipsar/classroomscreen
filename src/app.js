@@ -4893,11 +4893,16 @@
         return {
           title: "Min presentation",
           currentSlide: 0,
+          revealStep: 0,
+          themeId: "indigo",
+          editMode: false,
           slides: [
             {
               id: "slide-1",
-              background: { type: "color", value: "#ffffff" },
-              blocks: []
+              title: "Slide 1",
+              background: { type: "color", value: "#0f172a" },
+              blocks: [],
+              notes: ""
             }
           ],
           media: {},
@@ -4905,19 +4910,90 @@
         };
       },
       render: function (container, data, onChange, widget) {
+        var themes = [
+          { id: "indigo", name: "Indigo", bg: "#0f172a", fg: "#ffffff", accent: "#6366f1" },
+          { id: "slate", name: "Slate", bg: "#111827", fg: "#e5e7eb", accent: "#22d3ee" },
+          { id: "light", name: "Light", bg: "#ffffff", fg: "#0f172a", accent: "#2563eb" }
+        ];
+        
+        function normalizeBlock(block) {
+          if (!block || typeof block !== "object") {
+            return null;
+          }
+          
+          var normalized = {
+            id: block.id || "block-" + Date.now(),
+            type: block.type || "text",
+            reveal: typeof block.reveal === "boolean" ? block.reveal : false
+          };
+          
+          if (block.type === "heading") {
+            normalized.content = block.content || "";
+            normalized.size = block.size || "L";
+            normalized.align = block.align || "left";
+          } else if (block.type === "text") {
+            normalized.content = block.content || "";
+            normalized.size = block.size || "md";
+            normalized.align = block.align || "left";
+          } else if (block.type === "list") {
+            normalized.items = Array.isArray(block.items) ? block.items : [];
+            normalized.ordered = typeof block.ordered === "boolean" ? block.ordered : false;
+            normalized.revealItems = typeof block.revealItems === "boolean" ? block.revealItems : false;
+          } else if (block.type === "image") {
+            normalized.url = block.url || "";
+            normalized.fit = block.fit || "contain";
+          } else if (block.type === "youtube") {
+            normalized.url = block.url || "";
+            normalized.videoId = block.videoId || "";
+          } else if (block.type === "columns") {
+            normalized.ratio = block.ratio || "50-50";
+            if (Array.isArray(block.cols) && block.cols.length === 2) {
+              var col1 = normalizeBlock(block.cols[0]);
+              var col2 = normalizeBlock(block.cols[1]);
+              normalized.cols = [
+                col1 || normalizeBlock({ type: "text", content: "", size: "md", align: "left" }),
+                col2 || normalizeBlock({ type: "text", content: "", size: "md", align: "left" })
+              ];
+            } else {
+              normalized.cols = [
+                normalizeBlock({ type: "text", content: "", size: "md", align: "left" }),
+                normalizeBlock({ type: "text", content: "", size: "md", align: "left" })
+              ];
+            }
+          } else {
+            normalized.content = block.content || "";
+          }
+          
+          return normalized;
+        }
+        
         var state = {
           title: ensureString(data && data.title, "Min presentation"),
           currentSlide: typeof data.currentSlide === "number" ? data.currentSlide : 0,
-          slides: data && Array.isArray(data.slides) ? data.slides : [
+          revealStep: typeof data.revealStep === "number" ? data.revealStep : 0,
+          themeId: data && data.themeId ? data.themeId : "indigo",
+          editMode: typeof data.editMode === "boolean" ? data.editMode : false,
+          slides: data && Array.isArray(data.slides) ? data.slides.map(function(s) {
+            return {
+              id: s.id || "slide-" + Date.now(),
+              title: s.title || "Slide",
+              background: s.background || { type: "color", value: "#0f172a" },
+              blocks: Array.isArray(s.blocks) ? s.blocks.map(normalizeBlock).filter(function(b) { return b !== null; }) : [],
+              notes: s.notes || ""
+            };
+          }) : [
             {
               id: "slide-1",
-              background: { type: "color", value: "#ffffff" },
-              blocks: []
+              title: "Slide 1",
+              background: { type: "color", value: "#0f172a" },
+              blocks: [],
+              notes: ""
             }
           ],
           media: data && data.media ? data.media : {},
           presentationMode: false,
-          allowStudentNavigation: typeof data.allowStudentNavigation === "boolean" ? data.allowStudentNavigation : true
+          allowStudentNavigation: typeof data.allowStudentNavigation === "boolean" ? data.allowStudentNavigation : true,
+          themes: themes
         };
 
         var wrapper = createElement("div", "presentation-wrapper");
@@ -4939,6 +5015,7 @@
             type: "presentation-update",
             widgetId: syncId,
             currentSlide: state.currentSlide,
+            revealStep: state.revealStep,
             presentationMode: state.presentationMode,
             allowStudentNavigation: state.allowStudentNavigation
           };
@@ -5374,7 +5451,8 @@
             { type: "text", label: "Text" },
             { type: "list", label: "Lista" },
             { type: "image", label: "Bild" },
-            { type: "youtube", label: "YouTube" }
+            { type: "youtube", label: "YouTube" },
+            { type: "columns", label: "Kolumner" }
           ];
 
           for (var t = 0; t < types.length; t += 1) {
@@ -5408,21 +5486,32 @@
 
         function addBlock(type) {
           var slide = state.slides[state.currentSlide];
-          var newBlock = { id: "block-" + Date.now(), type: type };
+          var newBlock = { id: "block-" + Date.now(), type: type, reveal: false };
 
           if (type === "heading") {
             newBlock.content = "";
             newBlock.size = "L";
+            newBlock.align = "left";
           } else if (type === "text") {
             newBlock.content = "";
+            newBlock.size = "md";
+            newBlock.align = "left";
           } else if (type === "list") {
             newBlock.items = [];
             newBlock.ordered = false;
+            newBlock.revealItems = false;
           } else if (type === "image") {
             newBlock.url = "";
+            newBlock.fit = "contain";
           } else if (type === "youtube") {
             newBlock.url = "";
             newBlock.videoId = "";
+          } else if (type === "columns") {
+            newBlock.ratio = "50-50";
+            newBlock.cols = [
+              { id: "block-" + Date.now() + "-a", type: "text", content: "", size: "md", align: "left", reveal: false },
+              { id: "block-" + Date.now() + "-b", type: "text", content: "", size: "md", align: "left", reveal: false }
+            ];
           }
 
           slide.blocks.push(newBlock);
@@ -5782,6 +5871,14 @@
               }
             }
             
+            if (typeof updateData.revealStep === "number" && updateData.revealStep !== state.revealStep) {
+              state.revealStep = updateData.revealStep;
+              
+              if (state.presentationMode) {
+                renderPresentationView();
+              }
+            }
+            
             if (typeof updateData.presentationMode === "boolean" && updateData.presentationMode !== state.presentationMode) {
               if (updateData.presentationMode && !state.presentationMode) {
                 enterPresentationMode();
@@ -5829,11 +5926,16 @@
           return {
             title: "Min presentation",
             currentSlide: 0,
+            revealStep: 0,
+            themeId: "indigo",
+            editMode: false,
             slides: [
               {
                 id: "slide-1",
-                background: { type: "color", value: "#ffffff" },
-                blocks: []
+                title: "Slide 1",
+                background: { type: "color", value: "#0f172a" },
+                blocks: [],
+                notes: ""
               }
             ],
             media: {},
@@ -5843,6 +5945,9 @@
         return {
           title: ensureString(state.title, "Min presentation"),
           currentSlide: typeof state.currentSlide === "number" ? state.currentSlide : 0,
+          revealStep: typeof state.revealStep === "number" ? state.revealStep : 0,
+          themeId: state.themeId || "indigo",
+          editMode: typeof state.editMode === "boolean" ? state.editMode : false,
           slides: state.slides || [],
           media: state.media || {},
           allowStudentNavigation: typeof state.allowStudentNavigation === "boolean" ? state.allowStudentNavigation : true
