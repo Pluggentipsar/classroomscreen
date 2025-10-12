@@ -1,0 +1,753 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Play,
+  Edit3,
+  Plus,
+  Copy,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  Image as ImageIcon,
+  Video,
+  AlignLeft,
+  AlignCenter,
+  Palette,
+  Type as TypeIcon,
+  Maximize,
+  Minimize,
+  Search
+} from "lucide-react";
+
+// ================ DEV TESTS (lightweight) =================
+// We keep tiny runtime assertions for helper functions.
+function assert(condition: boolean, msg: string) {
+  if (!condition) {
+    // eslint-disable-next-line no-console
+    console.error("[TEST FAIL] " + msg);
+  }
+}
+
+// ===================== APP =====================
+export default function App() {
+  useEffect(() => {
+    // run simple tests once
+    runTests();
+  }, []);
+
+  return (
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-800 flex flex-col items-center justify-center gap-10 p-6 md:p-10 relative overflow-hidden">
+      <PresentationWidget />
+    </div>
+  );
+}
+
+// ===================== SHARED =====================
+function Card({ children, className = "" }) {
+  return (
+    <div
+      className={`relative rounded-2xl bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/40 dark:border-white/10 ${className}`}
+      role="group"
+    >
+      {children}
+    </div>
+  );
+}
+
+// ===================== MEDIA PICKER (mock) =====================
+function MediaPicker({ onClose, onSelect }) {
+  const [tab, setTab] = useState<'photos' | 'pictos'>('photos');
+  const [q, setQ] = useState('');
+
+  const thumbs = Array.from({ length: 12 }).map((_, i) =>
+    tab === 'photos'
+      ? `https://images.unsplash.com/photo-${1513475382585 + i}?q=80&w=800&auto=format&fit=crop`
+      : `https://raw.githubusercontent.com/ARASAAC/arasaac-icons/master/PNG/512/animals/animal_${(i % 8) + 1}.png`
+  );
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute left-1/2 -translate-x-1/2 top-[6vh] w-[min(980px,94vw)] rounded-2xl bg-white shadow-2xl border border-black/10 overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-black/10">
+          <div className="flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            <h3 className="text-lg font-semibold">Choose media</h3>
+          </div>
+          <button onClick={onClose} className="h-9 px-3 rounded-xl bg-slate-100 hover:bg-slate-200">Close</button>
+        </div>
+        <div className="p-4">
+          <div className="flex gap-2">
+            <button onClick={() => setTab('photos')} className={`h-10 px-3 rounded-xl border ${tab === 'photos' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-black/10'}`}>
+              <ImageIcon className="h-4 w-4 inline mr-2" />Photos
+            </button>
+            <button onClick={() => setTab('pictos')} className={`h-10 px-3 rounded-xl border ${tab === 'pictos' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-black/10'}`}>
+              Pictograms
+            </button>
+          </div>
+          <div className="mt-3 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tab === 'photos' ? 'Search photos...' : 'Search pictograms...'} className="w-full h-11 pl-9 pr-3 rounded-xl border border-black/10" />
+          </div>
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[50vh] overflow-auto pr-1">
+            {thumbs.map((src, i) => (
+              <div key={i} className="rounded-xl overflow-hidden ring-1 ring-black/10 bg-slate-100">
+                <img src={src} alt="thumb" className="w-full h-36 object-cover" />
+                <div className="p-2 text-right">
+                  <button onClick={() => onSelect(src)} className="h-8 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm">Use</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===================== PRESENTATION WIDGET =====================
+// A lightweight deck builder with edit & present modes, per-block reveals, themes and filmstrip.
+function PresentationWidget() {
+  // ---------- Types ----------
+  type Align = 'left' | 'center';
+  type HeadingSize = 'xl' | 'lg' | 'md';
+  type TextSize = 'lg' | 'md';
+  type Block =
+    | { kind: 'heading'; text: string; align?: Align; size?: HeadingSize; reveal?: boolean }
+    | { kind: 'text'; text: string; align?: Align; size?: TextSize; reveal?: boolean }
+    | { kind: 'bullets'; items: string[]; revealItems?: boolean }
+    | { kind: 'image'; url: string; alt?: string; fit?: 'contain' | 'cover'; reveal?: boolean }
+    | { kind: 'video'; url: string; reveal?: boolean }
+    | { kind: 'columns'; cols: [Block, Block]; ratio?: '50-50' | '60-40' | '40-60'; reveal?: boolean };
+
+  type Slide = {
+    id: string;
+    title?: string;
+    bg?: { type: 'color' | 'image'; value: string; dim?: boolean };
+    blocks: Block[];
+    notes?: string;
+  };
+
+  type Theme = { id: string; name: string; bg: string; fg: string; accent: string };
+
+  // ---------- State ----------
+  const themes: Theme[] = [
+    { id: 'indigo', name: 'Indigo', bg: '#0f172a', fg: '#ffffff', accent: '#6366f1' },
+    { id: 'slate', name: 'Slate', bg: '#111827', fg: '#e5e7eb', accent: '#22d3ee' },
+    { id: 'light', name: 'Light', bg: '#ffffff', fg: '#0f172a', accent: '#2563eb' },
+  ];
+
+  const [themeId, setThemeId] = useState<Theme['id']>('indigo');
+
+  const [slides, setSlides] = useState<Slide[]>([
+    {
+      id: 's1',
+      title: 'Welcome',
+      bg: { type: 'color', value: '#0f172a', dim: false },
+      blocks: [
+        { kind: 'heading', text: 'Welcome to class', align: 'center', size: 'xl', reveal: false },
+        { kind: 'text', text: 'Today: goals, activity, reflection.', align: 'center', size: 'lg' },
+      ],
+      notes: 'Say hello, set expectations, outline the session.'
+    },
+    {
+      id: 's2',
+      title: 'Agenda',
+      blocks: [
+        { kind: 'bullets', items: ['Warm-up', 'Task demo', 'Work time', 'Exit ticket'], revealItems: true },
+      ],
+      notes: 'Move steadily, keep time.'
+    },
+    {
+      id: 's3',
+      title: 'Two-column example',
+      blocks: [
+        { kind: 'columns', ratio: '60-40', cols: [
+          { kind: 'image', url: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop', alt: 'placeholder', fit: 'contain' },
+          { kind: 'bullets', items: ['Point A', 'Point B', 'Point C'], revealItems: true }
+        ] }
+      ],
+    },
+    {
+      id: 's4',
+      title: 'Video',
+      blocks: [ { kind: 'video', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ' } ],
+    },
+  ]);
+
+  const [current, setCurrent] = useState(0);
+  const [edit, setEdit] = useState(false);
+  const [present, setPresent] = useState(false);
+  const [revealStep, setRevealStep] = useState(0);
+  const [picker, setPicker] = useState<{ open: boolean; slide: number | null; blockIndex: number | null; colIndex?: 0 | 1 }>({ open: false, slide: null, blockIndex: null });
+
+  const deckRef = useRef<HTMLDivElement | null>(null);
+
+  const theme = useMemo(() => themes.find(t => t.id === themeId)!, [themeId]);
+  const slide = slides[current];
+
+  // ---------- Reveal helpers ----------
+  type Segment = { type: 'block' | 'bullet'; blockIndex: number; count?: number };
+
+  function buildSegments(s: Slide): Segment[] {
+    const segs: Segment[] = [];
+    s.blocks.forEach((b, i) => {
+      if (b.kind === 'bullets' && b.revealItems) {
+        b.items.forEach(() => segs.push({ type: 'bullet', blockIndex: i }));
+      } else if ((b as any).reveal) {
+        segs.push({ type: 'block', blockIndex: i });
+      }
+    });
+    return segs;
+  }
+
+  function countBeforeBlock(segs: Segment[], blockIndex: number): number {
+    return segs.filter(s => s.blockIndex === blockIndex).findIndex(() => false) === -1
+      ? segs.filter(s => s.blockIndex < blockIndex).length
+      : segs.filter(s => s.blockIndex < blockIndex).length;
+  }
+
+  const segments = useMemo(() => buildSegments(slide), [slide]);
+  const totalSegments = segments.length;
+
+  // ---------- Navigation ----------
+  function goNext() {
+    if (present && revealStep < totalSegments) {
+      setRevealStep(r => r + 1);
+      return;
+    }
+    setRevealStep(0);
+    setCurrent(i => Math.min(slides.length - 1, i + 1));
+  }
+  function goPrev() {
+    if (present && revealStep > 0) {
+      setRevealStep(r => Math.max(0, r - 1));
+      return;
+    }
+    setRevealStep(0);
+    setCurrent(i => Math.max(0, i - 1));
+  }
+
+  // keyboard when presenting
+  useEffect(() => {
+    if (!present) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goNext(); }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goPrev(); }
+      if (e.key.toLowerCase() === 'e') { e.preventDefault(); setPresent(false); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [present, revealStep, current, totalSegments, slides]);
+
+  // fullscreen toggle
+  async function enterFullscreen() {
+    try {
+      if (deckRef.current && !document.fullscreenElement) {
+        await deckRef.current.requestFullscreen();
+      }
+    } catch {}
+  }
+  async function exitFullscreen() {
+    try { if (document.fullscreenElement) await document.exitFullscreen(); } catch {}
+  }
+
+  useEffect(() => {
+    const onFsChange = () => { if (!document.fullscreenElement) setPresent(false); };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  // slide ops
+  function updateSlide(idx: number, patch: Partial<Slide>) {
+    setSlides(arr => arr.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+  }
+  function updateBlock(idx: number, bi: number, block: Block) {
+    setSlides(arr => arr.map((s, i) => (i === idx ? { ...s, blocks: s.blocks.map((b, j) => (j === bi ? block : b)) } : s)));
+  }
+  function addSlide(template: 'title' | 'bullets' | 'image' | 'video' | 'columns') {
+    const id = 's' + Math.random().toString(36).slice(2, 7);
+    let blocks: Block[] = [];
+    if (template === 'title') blocks = [{ kind: 'heading', text: 'New title', align: 'center', size: 'xl', reveal: false }, { kind: 'text', text: 'Subtitle', align: 'center', size: 'lg' }];
+    if (template === 'bullets') blocks = [{ kind: 'bullets', items: ['Point 1', 'Point 2', 'Point 3'], revealItems: true }];
+    if (template === 'image') blocks = [{ kind: 'image', url: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop', alt: 'image', fit: 'contain', reveal: false }];
+    if (template === 'video') blocks = [{ kind: 'video', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', reveal: false }];
+    if (template === 'columns') blocks = [{ kind: 'columns', ratio: '50-50', cols: [ { kind: 'heading', text: 'Left', size: 'lg' }, { kind: 'bullets', items: ['Right A', 'Right B'], revealItems: true } ] }];
+    setSlides(arr => [...arr, { id, title: 'Slide', blocks }]);
+    setCurrent(slides.length);
+  }
+  function duplicateSlide() {
+    setSlides(arr => [...arr.slice(0, current + 1), { ...slide, id: 's' + Math.random().toString(36).slice(2, 7) }, ...arr.slice(current + 1)]);
+    setCurrent(c => c + 1);
+  }
+  function deleteSlide() {
+    if (slides.length <= 1) return;
+    setSlides(arr => arr.filter((_, i) => i !== current));
+    setCurrent(i => Math.max(0, i - 1));
+  }
+  function moveSlide(dir: -1 | 1) {
+    setSlides(arr => {
+      const next = [...arr];
+      const j = current + dir;
+      if (j < 0 || j >= next.length) return arr;
+      const [s] = next.splice(current, 1);
+      next.splice(j, 0, s);
+      return next;
+    });
+    setCurrent(i => Math.max(0, Math.min(slides.length - 1, i + dir)));
+  }
+
+  // block ops helpers
+  function addBlock(kind: Block['kind']) {
+    let block: Block;
+    if (kind === 'heading') block = { kind: 'heading', text: 'Heading', size: 'lg', align: 'left', reveal: false } as Block;
+    else if (kind === 'text') block = { kind: 'text', text: 'Body text', size: 'md', align: 'left', reveal: false } as Block;
+    else if (kind === 'bullets') block = { kind: 'bullets', items: ['New point'], revealItems: true } as Block;
+    else if (kind === 'image') block = { kind: 'image', url: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop', fit: 'contain', reveal: false } as Block;
+    else if (kind === 'video') block = { kind: 'video', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', reveal: false } as Block;
+    else block = { kind: 'columns', ratio: '50-50', cols: [ { kind: 'text', text: 'Left column', size: 'md' }, { kind: 'text', text: 'Right column', size: 'md' } ] } as Block;
+
+    updateSlide(current, { blocks: [...slide.blocks, block] });
+  }
+  function removeBlock(i: number) {
+    updateSlide(current, { blocks: slide.blocks.filter((_, j) => j !== i) });
+  }
+  function moveBlock(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (j < 0 || j >= slide.blocks.length) return;
+    const blocks = [...slide.blocks];
+    const [b] = blocks.splice(i, 1);
+    blocks.splice(j, 0, b as Block);
+    updateSlide(current, { blocks });
+  }
+
+  // present toggle
+  async function togglePresent() {
+    const next = !present;
+    setPresent(next);
+    setRevealStep(0);
+    if (next) await enterFullscreen(); else await exitFullscreen();
+  }
+
+  const progress = ((current + 1) / slides.length) * 100;
+
+  // ---------- Render ----------
+  return (
+    <Card ref={deckRef as any} className="w-[min(1200px,96vw)]">
+      {/* Header */}
+      <div className="px-5 pt-4 pb-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 grid place-items-center rounded-lg bg-white/70 border border-white/40">
+            <TypeIcon className="h-4 w-4" />
+          </div>
+          <h2 className="text-sm font-medium tracking-wide uppercase text-slate-700">Presentation</h2>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Theme select */}
+          <div className="flex items-center gap-2 bg-white/70 border border-white/40 rounded-xl p-1">
+            <Palette className="h-4 w-4 text-slate-600" />
+            <select value={themeId} onChange={(e) => setThemeId(e.target.value)} className="bg-transparent text-sm outline-none">
+              {themes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+          {/* Present / Edit */}
+          <div className="bg-white/70 border border-white/40 rounded-xl p-1 flex text-sm">
+            <button onClick={togglePresent} className={`px-3 py-1.5 rounded-lg inline-flex items-center gap-1 ${present ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-white'}`}>
+              {present ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />} {present ? 'Exit' : 'Present'}
+            </button>
+            <button onClick={() => setEdit(v => !v)} className={`px-3 py-1.5 rounded-lg inline-flex items-center gap-1 ${edit ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-white'}`}>
+              <Edit3 className="h-4 w-4" /> {edit ? 'Editing' : 'Edit'}
+            </button>
+          </div>
+          {/* Slide ops */}
+          <button onClick={() => addSlide('title')} className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 text-sm inline-flex items-center gap-2"><Plus className="h-4 w-4" />Add</button>
+          <button onClick={duplicateSlide} className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 text-sm inline-flex items-center gap-2"><Copy className="h-4 w-4" />Duplicate</button>
+          <button onClick={deleteSlide} className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 text-sm inline-flex items-center gap-2"><Trash2 className="h-4 w-4" />Delete</button>
+          <button onClick={() => moveSlide(-1)} className="h-9 px-2 rounded-xl bg-white/80 hover:bg-white border border-white/40"><ChevronLeft className="h-4 w-4" /></button>
+          <button onClick={() => moveSlide(1)} className="h-9 px-2 rounded-xl bg-white/80 hover:bg-white border border-white/40"><ChevronRight className="h-4 w-4" /></button>
+        </div>
+      </div>
+
+      {/* Progress */}
+      <div className="px-6 mb-2">
+        <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400" style={{ width: progress + '%' }} />
+        </div>
+        <div className="mt-1 text-xs text-slate-500 flex items-center justify-between">
+          <span>Slide {current + 1} of {slides.length}</span>
+          <span>{present ? `Reveal ${revealStep}/${totalSegments}` : ''}</span>
+        </div>
+      </div>
+
+      {/* Canvas */}
+      <div className="px-6 pb-4">
+        <SlideCanvas
+          theme={theme}
+          slide={slide}
+          edit={edit}
+          revealStep={revealStep}
+          segments={segments}
+          onUpdateSlide={(patch) => updateSlide(current, patch)}
+          onUpdateBlock={(i, b) => updateBlock(current, i, b)}
+          onOpenPicker={(i, colIndex) => setPicker({ open: true, slide: current, blockIndex: i, colIndex })}
+          onAddBlock={addBlock}
+          onRemoveBlock={removeBlock}
+          onMoveBlock={moveBlock}
+        />
+
+        {/* nav */}
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={goPrev} className="inline-flex items-center gap-1 rounded-xl px-4 py-2 bg-white/80 hover:bg-white border border-white/40"><ChevronLeft className="h-4 w-4" />Prev</button>
+          <button onClick={goNext} className="inline-flex items-center gap-1 rounded-xl px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white">Next<ChevronRight className="h-4 w-4" /></button>
+          {edit && (
+            <>
+              <button onClick={() => addSlide('bullets')} className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 text-sm">Add bullets</button>
+              <button onClick={() => addSlide('image')} className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 text-sm">Add image</button>
+              <button onClick={() => addSlide('video')} className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 text-sm">Add video</button>
+              <button onClick={() => addSlide('columns')} className="h-9 px-3 rounded-xl bg-white/80 hover:bg-white border border-white/40 text-sm">Add columns</button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Filmstrip */}
+      <div className="px-5 py-3 border-t border-black/10 overflow-x-auto">
+        <div className="flex gap-3 min-w-max">
+          {slides.map((s, i) => (
+            <button key={s.id} onClick={() => { setCurrent(i); setRevealStep(0); }}
+              className={`w-40 shrink-0 rounded-xl border ${i === current ? 'border-indigo-500 ring-2 ring-indigo-300' : 'border-black/10'} bg-white/80 hover:bg-white p-2 text-left`}
+            >
+              <div className="text-[11px] text-slate-500 mb-1 truncate">{s.title || 'Slide ' + (i + 1)}</div>
+              <div className="h-20 rounded-lg bg-slate-100" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Media picker */}
+      {picker.open && picker.slide !== null && picker.blockIndex !== null && (
+        <MediaPicker
+          onClose={() => setPicker({ open: false, slide: null, blockIndex: null })}
+          onSelect={(url: string) => {
+            const bi = picker.blockIndex as number;
+            const b = slides[current].blocks[bi];
+            if (b.kind === 'image') updateBlock(current, bi, { ...b, url });
+            if (b.kind === 'columns' && picker.colIndex !== undefined) {
+              const ci = picker.colIndex as 0 | 1;
+              const colBlock = b.cols[ci];
+              if (colBlock.kind === 'image') {
+                const newCols: [Block, Block] = [...b.cols] as any;
+                newCols[ci] = { ...colBlock, url } as Block;
+                updateBlock(current, bi, { ...b, cols: newCols });
+              }
+            }
+            setPicker({ open: false, slide: null, blockIndex: null });
+          }}
+        />
+      )}
+    </Card>
+  );
+}
+
+// ---------------- SlideCanvas ----------------
+function SlideCanvas({ theme, slide, edit, revealStep, segments, onUpdateSlide, onUpdateBlock, onOpenPicker, onAddBlock, onRemoveBlock, onMoveBlock }) {
+  const bgStyle: React.CSSProperties = slide.bg?.type === 'image'
+    ? { backgroundImage: `url(${slide.bg.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: slide.bg?.value ?? theme.bg };
+
+  const fg = theme.fg;
+  const accent = theme.accent;
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-black/10" style={{ background: theme.bg }}>
+      {/* slide header controls */}
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between bg-white/60">
+        <div className="flex items-center gap-2">
+          <input value={slide.title || ''} onChange={(e) => onUpdateSlide({ title: e.target.value })} placeholder="Slide title" className="h-9 px-3 rounded-xl border border-black/10 bg-white/90" />
+          <div className="text-xs text-slate-500">Notes:</div>
+          <input value={slide.notes || ''} onChange={(e) => onUpdateSlide({ notes: e.target.value })} placeholder="Speaker notes" className="h-9 px-3 rounded-xl border border-black/10 bg-white/90 w-[280px]" />
+        </div>
+        <div className="flex items-center gap-2">
+          {/* background chips */}
+          <button onClick={() => onUpdateSlide({ bg: { type: 'color', value: '#0f172a' } })} className="h-8 w-8 rounded-lg border" style={{ background: '#0f172a' }} />
+          <button onClick={() => onUpdateSlide({ bg: { type: 'color', value: '#ffffff' } })} className="h-8 w-8 rounded-lg border" style={{ background: '#ffffff' }} />
+          <button onClick={() => onUpdateSlide({ bg: { type: 'color', value: '#111827' } })} className="h-8 w-8 rounded-lg border" style={{ background: '#111827' }} />
+          <button onClick={() => onOpenPicker(-1)} className="h-8 px-3 rounded-lg bg-white/80 border border-white/40 text-sm inline-flex items-center gap-2"><ImageIcon className="h-4 w-4" />Background image</button>
+        </div>
+      </div>
+
+      {/* slide body */}
+      <div className="p-8 min-h-[420px] grid place-items-center" style={bgStyle}>
+        <div className="w-full max-w-4xl" style={{ color: fg }}>
+          {slide.blocks.map((b, i) => (
+            <div key={i} className="my-4">
+              <BlockRenderer
+                block={b}
+                index={i}
+                edit={edit}
+                fg={fg}
+                accent={accent}
+                revealStep={revealStep}
+                segments={segments}
+                onUpdate={(blk) => onUpdateBlock(i, blk)}
+                onOpenPicker={(colIndex?: 0 | 1) => onOpenPicker(i, colIndex)}
+                onRemove={() => onRemoveBlock(i)}
+                onMove={(dir) => onMoveBlock(i, dir)}
+              />
+            </div>
+          ))}
+
+          {edit && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              <button onClick={() => onAddBlock('heading')} className="h-9 px-3 rounded-xl bg-white/80 border border-white/40 text-sm inline-flex items-center gap-2"><TypeIcon className="h-4 w-4" />Add heading</button>
+              <button onClick={() => onAddBlock('text')} className="h-9 px-3 rounded-xl bg-white/80 border border-white/40 text-sm">Add text</button>
+              <button onClick={() => onAddBlock('bullets')} className="h-9 px-3 rounded-xl bg-white/80 border border-white/40 text-sm">Add bullets</button>
+              <button onClick={() => onAddBlock('image')} className="h-9 px-3 rounded-xl bg-white/80 border border-white/40 text-sm">Add image</button>
+              <button onClick={() => onAddBlock('video')} className="h-9 px-3 rounded-xl bg-white/80 border border-white/40 text-sm">Add video</button>
+              <button onClick={() => onAddBlock('columns')} className="h-9 px-3 rounded-xl bg-white/80 border border-white/40 text-sm">Add columns</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- BlockRenderer ----------------
+function BlockRenderer({ block, index, edit, fg, accent, revealStep, segments, onUpdate, onOpenPicker, onRemove, onMove }) {
+  function segIndexBeforeBlock(i: number): number {
+    let count = 0;
+    for (const s of segments) {
+      if (s.blockIndex < i) count += 1;
+    }
+    return count;
+  }
+
+  function isBlockVisible(i: number): boolean {
+    const before = segIndexBeforeBlock(i);
+    // find if this block has its own reveal segment
+    const hasOwn = segments.some(s => s.blockIndex === i && s.type === 'block');
+    if (!hasOwn) return true; // always visible if not revealable
+    return revealStep >= before + 1;
+  }
+
+  function bulletsVisibleCount(i: number, total: number): number {
+    const before = segIndexBeforeBlock(i);
+    const shown = Math.max(0, revealStep - before);
+    return Math.min(total, shown);
+  }
+
+  const ctrl = (
+    edit && (
+      <div className="mt-2 flex items-center gap-2 flex-wrap">
+        <button onClick={() => onMove(-1)} className="h-8 w-8 rounded-lg bg-white/70 border border-white/40 grid place-items-center"><ChevronUp className="h-4 w-4" /></button>
+        <button onClick={() => onMove(1)} className="h-8 w-8 rounded-lg bg-white/70 border border-white/40 grid place-items-center"><ChevronDown className="h-4 w-4" /></button>
+        {'reveal' in block && (
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={(block as any).reveal || false} onChange={(e) => onUpdate({ ...(block as any), reveal: e.target.checked })} />
+            Reveal
+          </label>
+        )}
+        {block.kind === 'bullets' && (
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={block.revealItems || false} onChange={(e) => onUpdate({ ...block, revealItems: e.target.checked })} />
+            Reveal items
+          </label>
+        )}
+        <button onClick={onRemove} className="h-8 px-2 rounded-lg bg-white/70 border border-white/40 text-sm inline-flex items-center gap-1"><Trash2 className="h-4 w-4" />Remove</button>
+      </div>
+    )
+  );
+
+  if (block.kind === 'heading') {
+    const sizeCls = block.size === 'xl' ? 'text-5xl md:text-6xl' : block.size === 'lg' ? 'text-4xl md:text-5xl' : 'text-3xl md:text-4xl';
+    return (
+      <div>
+        {edit ? (
+          <div className="flex items-center gap-2 mb-2">
+            <button onClick={() => onUpdate({ ...block, align: 'left' })} className={`h-8 w-8 rounded-lg border grid place-items-center ${block.align !== 'center' ? 'bg-indigo-600 text-white' : 'bg-white/70'}`}><AlignLeft className="h-4 w-4" /></button>
+            <button onClick={() => onUpdate({ ...block, align: 'center' })} className={`h-8 w-8 rounded-lg border grid place-items-center ${block.align === 'center' ? 'bg-indigo-600 text-white' : 'bg-white/70'}`}><AlignCenter className="h-4 w-4" /></button>
+            <select value={block.size || 'lg'} onChange={(e) => onUpdate({ ...block, size: e.target.value as any })} className="h-8 px-2 rounded-lg border bg-white/80 text-sm">
+              <option value="xl">XL</option>
+              <option value="lg">LG</option>
+              <option value="md">MD</option>
+            </select>
+          </div>
+        ) : null}
+        {(!edit && 'reveal' in block && !(isBlockVisible(index))) ? null : (
+          edit ? (
+            <input value={block.text} onChange={(e) => onUpdate({ ...block, text: e.target.value })} className={`w-full bg-transparent font-bold outline-none ${sizeCls} ${block.align === 'center' ? 'text-center' : ''}`} />
+          ) : (
+            <h3 className={`font-bold ${sizeCls} ${block.align === 'center' ? 'text-center' : ''}`} style={{ color: fg }}>{block.text}</h3>
+          )
+        )}
+        {ctrl}
+      </div>
+    );
+  }
+
+  if (block.kind === 'text') {
+    const sizeCls = block.size === 'lg' ? 'text-2xl' : 'text-xl';
+    return (
+      <div>
+        {edit ? (
+          <div className="flex items-center gap-2 mb-2">
+            <button onClick={() => onUpdate({ ...block, align: 'left' })} className={`h-8 w-8 rounded-lg border grid place-items-center ${block.align !== 'center' ? 'bg-indigo-600 text-white' : 'bg-white/70'}`}><AlignLeft className="h-4 w-4" /></button>
+            <button onClick={() => onUpdate({ ...block, align: 'center' })} className={`h-8 w-8 rounded-lg border grid place-items-center ${block.align === 'center' ? 'bg-indigo-600 text-white' : 'bg-white/70'}`}><AlignCenter className="h-4 w-4" /></button>
+            <select value={block.size || 'md'} onChange={(e) => onUpdate({ ...block, size: e.target.value as any })} className="h-8 px-2 rounded-lg border bg-white/80 text-sm">
+              <option value="lg">LG</option>
+              <option value="md">MD</option>
+            </select>
+          </div>
+        ) : null}
+        {(!edit && 'reveal' in block && !(isBlockVisible(index))) ? null : (
+          edit ? (
+            <textarea value={block.text} onChange={(e) => onUpdate({ ...block, text: e.target.value })} rows={3} className={`w-full bg-transparent outline-none ${sizeCls} ${block.align === 'center' ? 'text-center' : ''}`} />
+          ) : (
+            <p className={`${sizeCls} leading-relaxed ${block.align === 'center' ? 'text-center' : ''}`} style={{ color: fg }}>{block.text}</p>
+          )
+        )}
+        {ctrl}
+      </div>
+    );
+  }
+
+  if (block.kind === 'bullets') {
+    const total = block.items.length;
+    const visible = block.revealItems ? bulletsVisibleCount(index, total) : total;
+    return (
+      <div>
+        <ul className="list-disc pl-6 text-xl space-y-2">
+          {(block.items.slice(0, visible)).map((t, idx) => (
+            <li key={idx}>{edit ? (
+              <input value={t} onChange={(e) => {
+                const next = [...block.items]; next[idx] = e.target.value; onUpdate({ ...block, items: next });
+              }} className="bg-transparent border-b border-black/10 focus:outline-none" />
+            ) : t}</li>
+          ))}
+        </ul>
+        {edit && (
+          <div className="mt-2 flex gap-2 flex-wrap">
+            <button onClick={() => onUpdate({ ...block, items: [...block.items, 'New point'] })} className="h-8 px-3 rounded-lg bg-white/70 border border-white/40 text-sm">+ bullet</button>
+            {block.items.length > 0 && (
+              <button onClick={() => onUpdate({ ...block, items: block.items.slice(0, -1) })} className="h-8 px-3 rounded-lg bg-white/70 border border-white/40 text-sm">- bullet</button>
+            )}
+          </div>
+        )}
+        {ctrl}
+      </div>
+    );
+  }
+
+  if (block.kind === 'image') {
+    const hidden = (!edit && block.reveal && !isBlockVisible(index));
+    return (
+      <div className="relative">
+        {hidden ? null : (
+          <img src={block.url} alt={block.alt || 'image'} className={`w-full ${block.fit === 'cover' ? 'max-h-[420px] object-cover' : 'max-h-[420px] object-contain'} rounded-xl shadow`} />
+        )}
+        {edit && (
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <button onClick={() => onOpenPicker()} className="h-8 px-3 rounded-lg bg-white/70 border border-white/40 text-sm inline-flex items-center gap-2"><ImageIcon className="h-4 w-4" />Change image</button>
+            <select value={block.fit || 'contain'} onChange={(e) => onUpdate({ ...block, fit: e.target.value as any })} className="h-8 px-2 rounded-lg border bg-white/80 text-sm">
+              <option value="contain">Contain</option>
+              <option value="cover">Cover</option>
+            </select>
+          </div>
+        )}
+        {ctrl}
+      </div>
+    );
+  }
+
+  if (block.kind === 'video') {
+    const hidden = (!edit && block.reveal && !isBlockVisible(index));
+    return (
+      <div>
+        {hidden ? null : (
+          <div className="aspect-video w-full rounded-xl overflow-hidden shadow">
+            <iframe src={block.url} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen title="video" />
+          </div>
+        )}
+        {edit && (
+          <div className="mt-2 flex gap-2 items-center">
+            <Video className="h-5 w-5" />
+            <input value={block.url} onChange={(e) => onUpdate({ ...block, url: e.target.value })} placeholder="YouTube/Vimeo embed url" className="flex-1 h-10 px-3 rounded-xl border" />
+          </div>
+        )}
+        {ctrl}
+      </div>
+    );
+  }
+
+  if (block.kind === 'columns') {
+    const hidden = (!edit && block.reveal && !isBlockVisible(index));
+    const gridCls = block.ratio === '60-40' ? 'grid-cols-[3fr,2fr]' : block.ratio === '40-60' ? 'grid-cols-[2fr,3fr]' : 'grid-cols-2';
+    return (
+      <div>
+        {hidden ? null : (
+          <div className={`grid ${gridCls} gap-6`}>
+            {block.cols.map((col, ci) => (
+              <div key={ci}>
+                <BlockRenderer
+                  block={col}
+                  index={index}
+                  edit={edit}
+                  fg={fg}
+                  accent={accent}
+                  revealStep={revealStep}
+                  segments={segments}
+                  onUpdate={(blk) => {
+                    const cols: [any, any] = [...block.cols] as any; cols[ci] = blk; onUpdate({ ...block, cols: cols as any });
+                  }}
+                  onOpenPicker={() => onOpenPicker(ci as 0 | 1)}
+                  onRemove={() => {}}
+                  onMove={() => {}}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        {edit && (
+          <div className="mt-2 flex items-center gap-2">
+            <select value={block.ratio || '50-50'} onChange={(e) => onUpdate({ ...block, ratio: e.target.value as any })} className="h-8 px-2 rounded-lg border bg-white/80 text-sm">
+              <option value="50-50">50-50</option>
+              <option value="60-40">60-40</option>
+              <option value="40-60">40-60</option>
+            </select>
+          </div>
+        )}
+        {ctrl}
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ===================== TESTS =====================
+function runTests() {
+  // Build a fake slide to validate segments logic
+  const slide: any = {
+    blocks: [
+      { kind: 'heading', text: 'A', reveal: true },
+      { kind: 'bullets', items: ['1', '2'], revealItems: true },
+      { kind: 'text', text: 'B' },
+      { kind: 'image', url: 'x', reveal: true },
+    ],
+  };
+  const segs = (function buildSegments(s) {
+    const out: any[] = [];
+    s.blocks.forEach((b, i) => {
+      if (b.kind === 'bullets' && b.revealItems) b.items.forEach(() => out.push({ type: 'bullet', blockIndex: i }));
+      else if (b.reveal) out.push({ type: 'block', blockIndex: i });
+    });
+    return out;
+  })(slide);
+
+  assert(segs.length === 4, 'segments length should be 4 (1 block + 2 bullets + 1 block)');
+  assert(segs[0].type === 'block' && segs[0].blockIndex === 0, 'first segment is heading block');
+  assert(segs[1].type === 'bullet' && segs[1].blockIndex === 1, 'second segment is bullet 1');
+  assert(segs[3].type === 'block' && segs[3].blockIndex === 3, 'last segment is image block');
+}
