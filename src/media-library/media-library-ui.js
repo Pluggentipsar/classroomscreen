@@ -108,10 +108,10 @@ class MediaLibraryUI {
               />
               <button type="button" class="clear-search-btn" style="display: none;">×</button>
             </div>
-            <div class="filter-bar" id="filterBar" style="display: none;">
+            <div class="filter-bar" id="filterBar">
               <div class="filter-group">
                 <label>Orientering:</label>
-                <button type="button" class="filter-btn" data-orientation="">Alla</button>
+                <button type="button" class="filter-btn active" data-orientation="">Alla</button>
                 <button type="button" class="filter-btn" data-orientation="landscape">Horisontell</button>
                 <button type="button" class="filter-btn" data-orientation="portrait">Vertikal</button>
                 <button type="button" class="filter-btn" data-orientation="square">Kvadratisk</button>
@@ -283,6 +283,7 @@ class MediaLibraryUI {
   }
 
   setOrientationFilter(orientation) {
+    console.log('Setting orientation filter:', orientation);
     this.currentOrientation = orientation;
 
     this.dialog.querySelectorAll('.filter-btn').forEach(btn => {
@@ -322,6 +323,7 @@ class MediaLibraryUI {
         if (this.currentOrientation) {
           options.orientation = this.currentOrientation;
         }
+        console.log('Searching Pexels with options:', options);
         results = await pexelsService.searchPhotos(query, 'sv', 30, options);
       } else {
         results = await arasaacService.searchPictograms(query, 'en');
@@ -343,6 +345,7 @@ class MediaLibraryUI {
       if (this.currentOrientation) {
         options.orientation = this.currentOrientation;
       }
+      console.log('Loading default Pexels content with options:', options);
       results = await pexelsService.getCuratedPhotos(30, options);
     } else {
       results = await arasaacService.getNewPictograms(24, 'en');
