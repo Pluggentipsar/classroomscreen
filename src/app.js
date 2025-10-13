@@ -2261,6 +2261,7 @@
         lockBtn.type = "button";
         
         function updateEditButton() {
+          if (!editBtn) return;
           if (state.editMode) {
             editBtn.classList.add("active");
             editBtn.innerHTML = "✏️ Klar";
@@ -4163,15 +4164,21 @@
         modeToggle.appendChild(allModeBtn);
         
         var controls = createElement("div", "step-header-controls");
-        var editBtn = createElement("button", "step-edit-btn");
-        editBtn.type = "button";
-        editBtn.innerHTML = "✏️ Redigera";
+
+        // Only show edit button in host mode
+        var editBtn = null;
+        if (!window.isViewerMode) {
+          editBtn = createElement("button", "step-edit-btn");
+          editBtn.type = "button";
+          editBtn.innerHTML = "✏️ Redigera";
+          controls.appendChild(editBtn);
+        }
+
         var hideTextBtn = createElement("button", "step-hidetext-btn");
         hideTextBtn.type = "button";
         hideTextBtn.innerHTML = "👁️ Dölj text";
-        controls.appendChild(editBtn);
         controls.appendChild(hideTextBtn);
-        
+
         header.appendChild(modeToggle);
         header.appendChild(controls);
         
@@ -4193,6 +4200,7 @@
         }
         
         function updateEditButton() {
+          if (!editBtn) return;
           if (state.editMode) {
             editBtn.classList.add("active");
             editBtn.innerHTML = "✏️ Klar";
@@ -4313,9 +4321,23 @@
               renderSingleView();
               updateProgress();
               if (typeof onChange === "function") { onChange(); }
+
+              // Broadcast step change to viewers
+              if (!window.isViewerMode && window.liveRoomSync) {
+                var widgetElement = container.closest('.widget');
+                if (widgetElement) {
+                  var syncId = widgetElement.getAttribute('data-sync-id');
+                  if (syncId) {
+                    window.liveRoomSync.sendWidgetUpdate(syncId, 'step-instruction', {
+                      currentStep: state.currentStep,
+                      mode: state.mode
+                    });
+                  }
+                }
+              }
             }
           });
-          
+
           var nextBtn = createElement("button", "step-nav-btn step-nav-btn-primary");
           nextBtn.type = "button";
           nextBtn.innerHTML = "Nästa ▶";
@@ -4326,6 +4348,20 @@
               renderSingleView();
               updateProgress();
               if (typeof onChange === "function") { onChange(); }
+
+              // Broadcast step change to viewers
+              if (!window.isViewerMode && window.liveRoomSync) {
+                var widgetElement = container.closest('.widget');
+                if (widgetElement) {
+                  var syncId = widgetElement.getAttribute('data-sync-id');
+                  if (syncId) {
+                    window.liveRoomSync.sendWidgetUpdate(syncId, 'step-instruction', {
+                      currentStep: state.currentStep,
+                      mode: state.mode
+                    });
+                  }
+                }
+              }
             }
           });
           
@@ -4408,6 +4444,20 @@
               updateProgress();
               progressBar.style.display = "block";
               if (typeof onChange === "function") { onChange(); }
+
+              // Broadcast mode and step change to viewers
+              if (!window.isViewerMode && window.liveRoomSync) {
+                var widgetElement = container.closest('.widget');
+                if (widgetElement) {
+                  var syncId = widgetElement.getAttribute('data-sync-id');
+                  if (syncId) {
+                    window.liveRoomSync.sendWidgetUpdate(syncId, 'step-instruction', {
+                      mode: 'single',
+                      currentStep: i
+                    });
+                  }
+                }
+              }
             });
             cardBody.appendChild(openBtn);
             
@@ -4435,22 +4485,52 @@
           updateModeButtons();
           updateView();
           if (typeof onChange === "function") { onChange(); }
+
+          // Broadcast mode change to viewers
+          if (!window.isViewerMode && window.liveRoomSync) {
+            var widgetElement = container.closest('.widget');
+            if (widgetElement) {
+              var syncId = widgetElement.getAttribute('data-sync-id');
+              if (syncId) {
+                window.liveRoomSync.sendWidgetUpdate(syncId, 'step-instruction', {
+                  mode: 'single',
+                  currentStep: state.currentStep
+                });
+              }
+            }
+          }
         });
-        
+
         allModeBtn.addEventListener("click", function() {
           state.mode = "all";
           updateModeButtons();
           updateView();
           if (typeof onChange === "function") { onChange(); }
+
+          // Broadcast mode change to viewers
+          if (!window.isViewerMode && window.liveRoomSync) {
+            var widgetElement = container.closest('.widget');
+            if (widgetElement) {
+              var syncId = widgetElement.getAttribute('data-sync-id');
+              if (syncId) {
+                window.liveRoomSync.sendWidgetUpdate(syncId, 'step-instruction', {
+                  mode: 'all'
+                });
+              }
+            }
+          }
         });
-        
-        editBtn.addEventListener("click", function() {
-          state.editMode = !state.editMode;
-          updateEditButton();
-          updateView();
-          if (typeof onChange === "function") { onChange(); }
-        });
-        
+
+        // Only add edit button event listener if button exists (host mode)
+        if (editBtn) {
+          editBtn.addEventListener("click", function() {
+            state.editMode = !state.editMode;
+            updateEditButton();
+            updateView();
+            if (typeof onChange === "function") { onChange(); }
+          });
+        }
+
         hideTextBtn.addEventListener("click", function() {
           state.hideText = !state.hideText;
           updateHideTextButton();
@@ -4462,13 +4542,29 @@
         container.appendChild(progressLabel);
         container.appendChild(progressBar);
         container.appendChild(mainContent);
-        
+
         updateModeButtons();
         updateEditButton();
         updateHideTextButton();
         updateView();
-        
+
         container._state = state;
+
+        // Add sync update handler for viewers
+        container.closest('.widget')._updateFromSync = function(updateData) {
+          if (updateData.hasOwnProperty('mode')) {
+            state.mode = updateData.mode;
+            updateModeButtons();
+            updateView();
+          }
+          if (updateData.hasOwnProperty('currentStep')) {
+            state.currentStep = updateData.currentStep;
+            if (state.mode === 'single') {
+              renderSingleView();
+              updateProgress();
+            }
+          }
+        };
       },
       save: function (widget) {
         var content = widget.querySelector(".widget-content");
@@ -9268,7 +9364,12 @@
           console.log("Updated widget control state:", widgetId, updateData.controlEnabled);
         }
 
-        // Future: Add more update types here (e.g., widget state sync)
+        // Handle step-instruction widget updates
+        if (widgetType === "step-instruction" && widget._updateFromSync) {
+          widget._updateFromSync(updateData);
+          console.log("Updated step-instruction widget:", widgetId, updateData);
+        }
+
         return;
       }
     }
