@@ -7247,3 +7247,206 @@ body {
     justify-content: center;
   }
 }
+
+/* ============================================================================
+   SEATING CHART WIDGET
+   ============================================================================ */
+
+.seating-chart-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.seating-chart-toolbar {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  background: white;
+  border-bottom: 2px solid #e0e0e0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.seating-chart-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.seating-chart-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  margin-right: 4px;
+}
+
+.seating-chart-btn {
+  padding: 8px 16px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.seating-chart-btn:hover {
+  border-color: var(--primary);
+  background: rgba(63, 81, 181, 0.05);
+  transform: translateY(-1px);
+}
+
+.seating-chart-canvas {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  background: #f9f9f9;
+  padding: 20px;
+  min-height: 500px;
+}
+
+.seating-desk {
+  position: absolute;
+  width: 160px;
+  height: 95px;
+  transition: transform 0.2s;
+}
+
+.seating-desk:hover {
+  transform: scale(1.02);
+  z-index: 10;
+}
+
+.seating-desk-visual {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #8d6e63 0%, #a1887f 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  position: relative;
+  border: 3px solid #6d4c41;
+}
+
+.seating-seat {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 2px solid #ddd;
+  min-width: 0;
+}
+
+.seating-name-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  outline: none;
+  padding: 4px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seating-name-input::placeholder {
+  color: #999;
+  font-weight: normal;
+  font-size: 11px;
+}
+
+.seating-name-input:focus {
+  background: rgba(63, 81, 181, 0.05);
+  border-radius: 4px;
+}
+
+.seating-desk-delete {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #f44336;
+  background: #f44336;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.seating-desk:hover .seating-desk-delete {
+  opacity: 1;
+}
+
+.seating-desk-delete:hover {
+  background: #d32f2f;
+  border-color: #d32f2f;
+  transform: scale(1.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .seating-chart-toolbar {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .seating-chart-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .seating-desk {
+    width: 140px;
+    height: 85px;
+  }
+
+  .seating-name-input {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .seating-chart-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .seating-chart-group {
+    justify-content: center;
+  }
+
+  .seating-desk {
+    width: 120px;
+    height: 75px;
+  }
+
+  .seating-name-input {
+    font-size: 11px;
+  }
+}

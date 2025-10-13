@@ -74,6 +74,7 @@
 
   var moreWidgets = [
     "presentation",
+    "whiteboard",
     "pace-bar",
     "group-maker",
     "scoreboard",
@@ -6797,6 +6798,448 @@
           backgroundColor: state.backgroundColor || "#ffffff"
         };
       }
+    },
+    "seating-chart": {
+      title: "Sittplatskarta",
+      defaults: function() {
+        // Create default 6 rows x 3 columns layout (2 desks per unit)
+        var desks = [];
+        var deskId = 0;
+        for (var row = 0; row < 6; row++) {
+          for (var col = 0; col < 3; col++) {
+            desks.push({
+              id: "desk-" + (deskId++),
+              student1: "",
+              student2: "",
+              row: row,
+              col: col,
+              x: col * 180 + 20,
+              y: row * 110 + 20
+            });
+          }
+        }
+        return {
+          desks: desks,
+          showNames: true,
+          deskStyle: "double"
+        };
+      },
+      render: function(container, data, onChange) {
+        var state = {
+          desks: data && Array.isArray(data.desks) ? data.desks : this.defaults().desks,
+          showNames: data && data.showNames !== false,
+          deskStyle: data && data.deskStyle ? data.deskStyle : "double",
+          draggedDesk: null,
+          dragOffsetX: 0,
+          dragOffsetY: 0
+        };
+
+        var wrapper = createElement("div", "seating-chart-wrapper");
+
+        // Toolbar
+        var toolbar = createElement("div", "seating-chart-toolbar");
+
+        // Student list management
+        var studentsGroup = createElement("div", "seating-chart-group");
+        studentsGroup.innerHTML = '<div class="seating-chart-label">Elever:</div>';
+
+        var studentListBtn = createElement("button", "seating-chart-btn");
+        studentListBtn.type = "button";
+        studentListBtn.innerHTML = "📋 Elevlista";
+        studentListBtn.title = "Hantera elevlista";
+        studentListBtn.addEventListener("click", function() {
+          showStudentListDialog();
+        });
+        studentsGroup.appendChild(studentListBtn);
+
+        var randomizeBtn = createElement("button", "seating-chart-btn");
+        randomizeBtn.type = "button";
+        randomizeBtn.innerHTML = "🎲 Slumpa placering";
+        randomizeBtn.title = "Slumpa elevplaceringar";
+        randomizeBtn.addEventListener("click", function() {
+          randomizeSeating();
+        });
+        studentsGroup.appendChild(randomizeBtn);
+
+        var clearBtn = createElement("button", "seating-chart-btn");
+        clearBtn.type = "button";
+        clearBtn.innerHTML = "🗑️ Rensa namn";
+        clearBtn.title = "Rensa alla namn";
+        clearBtn.addEventListener("click", function() {
+          if (confirm("Vill du verkligen rensa alla namn från bänkarna?")) {
+            state.desks.forEach(function(desk) {
+              desk.student1 = "";
+              desk.student2 = "";
+            });
+            render();
+            broadcastUpdate();
+          }
+        });
+        studentsGroup.appendChild(clearBtn);
+
+        toolbar.appendChild(studentsGroup);
+
+        // Desk management
+        var desksGroup = createElement("div", "seating-chart-group");
+        desksGroup.innerHTML = '<div class="seating-chart-label">Bänkar:</div>';
+
+        var addDeskBtn = createElement("button", "seating-chart-btn");
+        addDeskBtn.type = "button";
+        addDeskBtn.innerHTML = "➕ Lägg till bänk";
+        addDeskBtn.title = "Lägg till ny bänk";
+        addDeskBtn.addEventListener("click", function() {
+          var newDesk = {
+            id: "desk-" + Date.now(),
+            student1: "",
+            student2: "",
+            row: 0,
+            col: 0,
+            x: 50,
+            y: 50
+          };
+          state.desks.push(newDesk);
+          render();
+          broadcastUpdate();
+        });
+        desksGroup.appendChild(addDeskBtn);
+
+        var resetLayoutBtn = createElement("button", "seating-chart-btn");
+        resetLayoutBtn.type = "button";
+        resetLayoutBtn.innerHTML = "↺ Återställ layout";
+        resetLayoutBtn.title = "Återställ till standard grid-layout";
+        resetLayoutBtn.addEventListener("click", function() {
+          if (confirm("Återställa till standard layout (6 rader x 3 kolumner = 18 bänkar)? Detta tar bort alla anpassningar men behåller elevnamnen.")) {
+            var students = getAllStudents();
+            var defaults = widgetFactory["seating-chart"].defaults();
+            state.desks = defaults.desks;
+
+            // Re-apply student names to new layout
+            var studentIndex = 0;
+            for (var i = 0; i < state.desks.length && studentIndex < students.length; i++) {
+              var desk = state.desks[i];
+              if (studentIndex < students.length) {
+                desk.student1 = students[studentIndex++];
+              }
+              if (studentIndex < students.length) {
+                desk.student2 = students[studentIndex++];
+              }
+            }
+
+            render();
+            broadcastUpdate();
+          }
+        });
+        desksGroup.appendChild(resetLayoutBtn);
+
+        toolbar.appendChild(desksGroup);
+
+        // View options
+        var viewGroup = createElement("div", "seating-chart-group");
+
+        var toggleNamesBtn = createElement("button", "seating-chart-btn");
+        toggleNamesBtn.type = "button";
+        toggleNamesBtn.innerHTML = state.showNames ? "👁️ Dölj namn" : "👁️ Visa namn";
+        toggleNamesBtn.title = "Visa/dölj elevnamn";
+        toggleNamesBtn.addEventListener("click", function() {
+          state.showNames = !state.showNames;
+          toggleNamesBtn.innerHTML = state.showNames ? "👁️ Dölj namn" : "👁️ Visa namn";
+          render();
+          broadcastUpdate();
+        });
+        viewGroup.appendChild(toggleNamesBtn);
+
+        toolbar.appendChild(viewGroup);
+
+        wrapper.appendChild(toolbar);
+
+        // Canvas area
+        var canvasArea = createElement("div", "seating-chart-canvas");
+
+        function render() {
+          canvasArea.innerHTML = "";
+
+          state.desks.forEach(function(desk, index) {
+            var deskEl = createElement("div", "seating-desk");
+            deskEl.style.left = desk.x + "px";
+            deskEl.style.top = desk.y + "px";
+            deskEl.setAttribute("data-desk-id", desk.id);
+
+            // Desk visual
+            var deskVisual = createElement("div", "seating-desk-visual");
+
+            // Student 1 seat
+            var seat1 = createElement("div", "seating-seat");
+            var nameInput1 = document.createElement("input");
+            nameInput1.type = "text";
+            nameInput1.className = "seating-name-input";
+            nameInput1.value = desk.student1 || "";
+            nameInput1.placeholder = "Elev 1";
+            nameInput1.style.display = state.showNames ? "block" : "none";
+            nameInput1.addEventListener("input", function() {
+              desk.student1 = nameInput1.value;
+              broadcastUpdate();
+            });
+            nameInput1.addEventListener("click", function(e) {
+              e.stopPropagation();
+            });
+            seat1.appendChild(nameInput1);
+            deskVisual.appendChild(seat1);
+
+            // Student 2 seat
+            var seat2 = createElement("div", "seating-seat");
+            var nameInput2 = document.createElement("input");
+            nameInput2.type = "text";
+            nameInput2.className = "seating-name-input";
+            nameInput2.value = desk.student2 || "";
+            nameInput2.placeholder = "Elev 2";
+            nameInput2.style.display = state.showNames ? "block" : "none";
+            nameInput2.addEventListener("input", function() {
+              desk.student2 = nameInput2.value;
+              broadcastUpdate();
+            });
+            nameInput2.addEventListener("click", function(e) {
+              e.stopPropagation();
+            });
+            seat2.appendChild(nameInput2);
+            deskVisual.appendChild(seat2);
+
+            deskEl.appendChild(deskVisual);
+
+            // Delete button (only visible for host)
+            if (!window.isViewerMode) {
+              var deleteBtn = createElement("button", "seating-desk-delete");
+              deleteBtn.type = "button";
+              deleteBtn.innerHTML = "×";
+              deleteBtn.title = "Ta bort bänk";
+              deleteBtn.addEventListener("click", function(e) {
+                e.stopPropagation();
+                if (confirm("Ta bort denna bänk?")) {
+                  state.desks.splice(index, 1);
+                  render();
+                  broadcastUpdate();
+                }
+              });
+              deskEl.appendChild(deleteBtn);
+
+              // Make draggable (only for host)
+              deskEl.style.cursor = "move";
+              deskEl.addEventListener("mousedown", function(e) {
+                if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") {
+                  return;
+                }
+                e.preventDefault();
+                state.draggedDesk = desk;
+                var rect = deskEl.getBoundingClientRect();
+                var canvasRect = canvasArea.getBoundingClientRect();
+                state.dragOffsetX = e.clientX - rect.left;
+                state.dragOffsetY = e.clientY - rect.top;
+              });
+            }
+
+            canvasArea.appendChild(deskEl);
+          });
+        }
+
+        // Drag handlers (only for host)
+        if (!window.isViewerMode) {
+          canvasArea.addEventListener("mousemove", function(e) {
+            if (!state.draggedDesk) return;
+            var canvasRect = canvasArea.getBoundingClientRect();
+            var newX = e.clientX - canvasRect.left - state.dragOffsetX;
+            var newY = e.clientY - canvasRect.top - state.dragOffsetY;
+
+            // Keep within bounds
+            newX = Math.max(0, Math.min(newX, canvasArea.offsetWidth - 120));
+            newY = Math.max(0, Math.min(newY, canvasArea.offsetHeight - 100));
+
+            state.draggedDesk.x = newX;
+            state.draggedDesk.y = newY;
+
+            var deskEl = canvasArea.querySelector('[data-desk-id="' + state.draggedDesk.id + '"]');
+            if (deskEl) {
+              deskEl.style.left = newX + "px";
+              deskEl.style.top = newY + "px";
+            }
+          });
+
+          canvasArea.addEventListener("mouseup", function() {
+            if (state.draggedDesk) {
+              state.draggedDesk = null;
+              broadcastUpdate();
+            }
+          });
+
+          canvasArea.addEventListener("mouseleave", function() {
+            if (state.draggedDesk) {
+              state.draggedDesk = null;
+              broadcastUpdate();
+            }
+          });
+        }
+
+        function getAllStudents() {
+          var students = [];
+          state.desks.forEach(function(desk) {
+            if (desk.student1 && desk.student1.trim()) {
+              students.push(desk.student1.trim());
+            }
+            if (desk.student2 && desk.student2.trim()) {
+              students.push(desk.student2.trim());
+            }
+          });
+          return students;
+        }
+
+        function showStudentListDialog() {
+          var students = getAllStudents();
+          var currentList = students.join("\n");
+          var newList = prompt("Ange elevnamn (ett per rad):\n\nKlistra in hela klasslistan så placeras eleverna ut automatiskt!", currentList);
+
+          if (newList !== null) {
+            var names = newList.split("\n").map(function(n) { return n.trim(); }).filter(function(n) { return n.length > 0; });
+
+            if (names.length === 0) {
+              // Clear all desks if no names
+              state.desks.forEach(function(desk) {
+                desk.student1 = "";
+                desk.student2 = "";
+              });
+            } else {
+              // Clear all desks first
+              state.desks.forEach(function(desk) {
+                desk.student1 = "";
+                desk.student2 = "";
+              });
+
+              // Fill desks with students in order
+              var nameIndex = 0;
+              for (var i = 0; i < state.desks.length && nameIndex < names.length; i++) {
+                var desk = state.desks[i];
+                if (nameIndex < names.length) {
+                  desk.student1 = names[nameIndex++];
+                }
+                if (nameIndex < names.length) {
+                  desk.student2 = names[nameIndex++];
+                }
+              }
+
+              // If there are more students than desk spaces, alert the user
+              if (nameIndex < names.length) {
+                alert("OBS: " + (names.length - nameIndex) + " elever fick inte plats. Lägg till fler bänkar eller ta bort några namn.");
+              }
+            }
+
+            render();
+            broadcastUpdate();
+          }
+        }
+
+        function randomizeSeating() {
+          var students = getAllStudents();
+
+          if (students.length === 0) {
+            alert("Det finns inga elever att slumpa. Använd 'Elevlista' för att lägga till elever först.");
+            return;
+          }
+
+          // Shuffle students
+          for (var i = students.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var temp = students[i];
+            students[i] = students[j];
+            students[j] = temp;
+          }
+
+          // Clear all desks
+          state.desks.forEach(function(desk) {
+            desk.student1 = "";
+            desk.student2 = "";
+          });
+
+          // Assign students to desks randomly
+          var studentIndex = 0;
+          for (var k = 0; k < state.desks.length && studentIndex < students.length; k++) {
+            var desk = state.desks[k];
+            if (studentIndex < students.length) {
+              desk.student1 = students[studentIndex++];
+            }
+            if (studentIndex < students.length) {
+              desk.student2 = students[studentIndex++];
+            }
+          }
+
+          render();
+          broadcastUpdate();
+        }
+
+        function broadcastUpdate() {
+          if (typeof onChange === "function") {
+            onChange();
+          }
+
+          // Broadcast to viewers
+          if (!window.isViewerMode && window.liveRoomSync) {
+            var widgetElement = container.closest('.widget');
+            if (widgetElement) {
+              var syncId = widgetElement.getAttribute('data-sync-id');
+              if (syncId) {
+                window.liveRoomSync.sendWidgetUpdate(syncId, 'seating-chart', {
+                  desks: state.desks,
+                  showNames: state.showNames
+                });
+              }
+            }
+          }
+        }
+
+        wrapper.appendChild(canvasArea);
+        container.appendChild(wrapper);
+
+        // Initial render
+        render();
+
+        // Store state
+        container._state = state;
+        container._render = render;
+
+        // Add sync update handler for viewers
+        var widgetElement = container.closest('.widget');
+        if (widgetElement) {
+          widgetElement._updateFromSync = function(updateData) {
+            if (updateData.hasOwnProperty('desks')) {
+              state.desks = updateData.desks;
+            }
+            if (updateData.hasOwnProperty('showNames')) {
+              state.showNames = updateData.showNames;
+            }
+            render();
+          };
+        }
+      },
+      save: function(widget) {
+        var content = widget.querySelector(".widget-content");
+        var state = content && content._state;
+
+        if (!state) {
+          return this.defaults();
+        }
+
+        return {
+          desks: state.desks.map(function(desk) {
+            return {
+              id: desk.id,
+              student1: desk.student1 || "",
+              student2: desk.student2 || "",
+              row: desk.row,
+              col: desk.col,
+              x: desk.x,
+              y: desk.y
+            };
+          }),
+          showNames: state.showNames,
+          deskStyle: state.deskStyle
+        };
+      }
     }
   };
   function WidgetManager(layer) {
@@ -9854,6 +10297,12 @@
         if (widgetType === "whiteboard" && widget._updateFromSync) {
           widget._updateFromSync(updateData);
           console.log("Updated whiteboard widget:", widgetId, updateData);
+        }
+
+        // Handle seating-chart widget updates
+        if (widgetType === "seating-chart" && widget._updateFromSync) {
+          widget._updateFromSync(updateData);
+          console.log("Updated seating-chart widget:", widgetId, updateData);
         }
 
         return;
