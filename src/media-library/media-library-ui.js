@@ -11,28 +11,41 @@ class MediaLibraryUI {
     this.currentQuery = '';
     this.allowMultiple = false;
     this.pexelsOptions = {};
+    this.currentOrientation = '';
   }
 
   open(options = {}) {
     const { onSelect, allowMultiple = false, title = 'Symbolbibliotek', pexelsOptions = {} } = options;
-    
+
     this.onSelectCallback = onSelect;
     this.allowMultiple = allowMultiple;
     this.selectedItems = [];
     this.pexelsOptions = pexelsOptions;
-    
+    this.currentOrientation = '';
+
     if (!this.dialog || !this.dialog.querySelector('.multi-select-confirm-btn')) {
       if (this.dialog) {
         this.dialog.remove();
       }
       this.createDialog(title);
     }
-    
+
+    // Set default filter state
+    this.dialog.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.orientation === '');
+    });
+
+    // Show filter bar for Pexels source
+    const filterBar = this.dialog.querySelector('#filterBar');
+    if (this.currentSource === 'pexels') {
+      filterBar.style.display = 'block';
+    }
+
     this.updateMultiSelectButton();
     this.dialog.showModal();
     this.switchView('search');
     this.loadDefaultContent();
-    
+
     const searchInput = this.dialog.querySelector('#mediaLibrarySearch');
     if (searchInput) {
       searchInput.focus();
@@ -87,13 +100,22 @@ class MediaLibraryUI {
               </button>
             </div>
             <div class="search-bar">
-              <input 
-                type="text" 
-                id="mediaLibrarySearch" 
+              <input
+                type="text"
+                id="mediaLibrarySearch"
                 placeholder="Sök efter bilder på svenska..."
                 autocomplete="off"
               />
               <button type="button" class="clear-search-btn" style="display: none;">×</button>
+            </div>
+            <div class="filter-bar" id="filterBar" style="display: none;">
+              <div class="filter-group">
+                <label>Orientering:</label>
+                <button type="button" class="filter-btn" data-orientation="">Alla</button>
+                <button type="button" class="filter-btn" data-orientation="landscape">Horisontell</button>
+                <button type="button" class="filter-btn" data-orientation="portrait">Vertikal</button>
+                <button type="button" class="filter-btn" data-orientation="square">Kvadratisk</button>
+              </div>
             </div>
             <div class="results-container">
               <div class="results-grid" id="searchResults"></div>
@@ -177,6 +199,13 @@ class MediaLibraryUI {
         this.switchSource(source);
       });
     });
+
+    this.dialog.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const orientation = e.currentTarget.dataset.orientation;
+        this.setOrientationFilter(orientation);
+      });
+    });
     
     const searchInput = this.dialog.querySelector('#mediaLibrarySearch');
     searchInput.addEventListener('input', (e) => this.handleSearch(e.target.value));
@@ -227,18 +256,40 @@ class MediaLibraryUI {
 
   switchSource(source) {
     this.currentSource = source;
-    
+
     this.dialog.querySelectorAll('.source-tab').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.source === source);
     });
-    
+
+    const filterBar = this.dialog.querySelector('#filterBar');
+    if (source === 'pexels') {
+      filterBar.style.display = 'block';
+    } else {
+      filterBar.style.display = 'none';
+    }
+
     const searchInput = this.dialog.querySelector('#mediaLibrarySearch');
     if (source === 'pexels') {
       searchInput.placeholder = 'Sök efter bilder på svenska...';
     } else {
       searchInput.placeholder = 'Search for pictograms in English...';
     }
-    
+
+    if (searchInput.value.trim()) {
+      this.handleSearch(searchInput.value);
+    } else {
+      this.loadDefaultContent();
+    }
+  }
+
+  setOrientationFilter(orientation) {
+    this.currentOrientation = orientation;
+
+    this.dialog.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.orientation === orientation);
+    });
+
+    const searchInput = this.dialog.querySelector('#mediaLibrarySearch');
     if (searchInput.value.trim()) {
       this.handleSearch(searchInput.value);
     } else {
@@ -249,29 +300,33 @@ class MediaLibraryUI {
   handleSearch(query) {
     const clearBtn = this.dialog.querySelector('.clear-search-btn');
     clearBtn.style.display = query.length > 0 ? 'block' : 'none';
-    
+
     if (this.searchTimeout) {
       clearTimeout(this.searchTimeout);
     }
-    
+
     if (query.trim().length < 2) {
       this.clearSearchResults();
       this.loadDefaultContent();
       return;
     }
-    
+
     this.currentQuery = query;
-    
+
     this.searchTimeout = setTimeout(async () => {
       this.showLoading(true);
-      
+
       let results = [];
       if (this.currentSource === 'pexels') {
-        results = await pexelsService.searchPhotos(query, 'sv', 30, this.pexelsOptions);
+        const options = { ...this.pexelsOptions };
+        if (this.currentOrientation) {
+          options.orientation = this.currentOrientation;
+        }
+        results = await pexelsService.searchPhotos(query, 'sv', 30, options);
       } else {
         results = await arasaacService.searchPictograms(query, 'en');
       }
-      
+
       if (this.currentQuery === query) {
         this.displaySearchResults(results);
         this.showLoading(false);
@@ -282,13 +337,17 @@ class MediaLibraryUI {
   async loadDefaultContent() {
     this.showLoading(true);
     let results = [];
-    
+
     if (this.currentSource === 'pexels') {
-      results = await pexelsService.getCuratedPhotos(30, this.pexelsOptions);
+      const options = { ...this.pexelsOptions };
+      if (this.currentOrientation) {
+        options.orientation = this.currentOrientation;
+      }
+      results = await pexelsService.getCuratedPhotos(30, options);
     } else {
       results = await arasaacService.getNewPictograms(24, 'en');
     }
-    
+
     this.displaySearchResults(results);
     this.showLoading(false);
   }

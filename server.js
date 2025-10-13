@@ -30,12 +30,14 @@ const mimeTypes = {
 const server = http.createServer((req, res) => {
   // API endpoint for Pexels API key
   if (req.url === '/api/pexels-key') {
-    res.writeHead(200, { 
+    const apiKey = process.env.PEXELS_API_KEY || '';
+    console.log('Pexels API key request - Key available:', apiKey ? 'YES' : 'NO');
+    res.writeHead(200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache'
     });
-    res.end(JSON.stringify({ 
-      apiKey: process.env.PEXELS_API_KEY || '' 
+    res.end(JSON.stringify({
+      apiKey: apiKey
     }));
     return;
   }

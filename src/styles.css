@@ -5419,6 +5419,49 @@ body {
   background: rgba(0, 0, 0, 0.2);
 }
 
+.filter-bar {
+  padding: 12px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.filter-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: 8px;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  background: white;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-primary);
+}
+
+.filter-btn:hover {
+  border-color: var(--primary);
+  background: rgba(63, 81, 181, 0.05);
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
 .results-container {
   flex: 1;
   overflow: auto;
