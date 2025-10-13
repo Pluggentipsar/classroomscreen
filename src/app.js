@@ -6883,11 +6883,11 @@
         var desksGroup = createElement("div", "seating-chart-group");
         desksGroup.innerHTML = '<div class="seating-chart-label">Bänkar:</div>';
 
-        var addDeskBtn = createElement("button", "seating-chart-btn");
-        addDeskBtn.type = "button";
-        addDeskBtn.innerHTML = "➕ Lägg till bänk";
-        addDeskBtn.title = "Lägg till ny bänk";
-        addDeskBtn.addEventListener("click", function() {
+        var addPairBtn = createElement("button", "seating-chart-btn");
+        addPairBtn.type = "button";
+        addPairBtn.innerHTML = "➕ Lägg till parbänk";
+        addPairBtn.title = "Lägg till ny parbänk";
+        addPairBtn.addEventListener("click", function() {
           var newDesk = {
             id: "desk-" + Date.now(),
             student1: "",
@@ -6895,13 +6895,35 @@
             row: 0,
             col: 0,
             x: 50,
-            y: 50
+            y: 50,
+            deskStyle: "double"
           };
           state.desks.push(newDesk);
           render();
           broadcastUpdate();
         });
-        desksGroup.appendChild(addDeskBtn);
+        desksGroup.appendChild(addPairBtn);
+
+        var addSingleBtn = createElement("button", "seating-chart-btn");
+        addSingleBtn.type = "button";
+        addSingleBtn.innerHTML = "➕ Lägg till enkelbänk";
+        addSingleBtn.title = "Lägg till ny enkelbänk";
+        addSingleBtn.addEventListener("click", function() {
+          var newDesk = {
+            id: "desk-" + Date.now(),
+            student1: "",
+            student2: "", // Keep student2 for data consistency, but it won't be used
+            row: 0,
+            col: 0,
+            x: 50,
+            y: 50,
+            deskStyle: "single"
+          };
+          state.desks.push(newDesk);
+          render();
+          broadcastUpdate();
+        });
+        desksGroup.appendChild(addSingleBtn);
 
         var resetLayoutBtn = createElement("button", "seating-chart-btn");
         resetLayoutBtn.type = "button";
@@ -6963,6 +6985,9 @@
             deskEl.style.left = desk.x + "px";
             deskEl.style.top = desk.y + "px";
             deskEl.setAttribute("data-desk-id", desk.id);
+            if (desk.deskStyle) {
+              deskEl.setAttribute("data-style", desk.deskStyle);
+            }
 
             // Desk visual
             var deskVisual = createElement("div", "seating-desk-visual");
@@ -6985,23 +7010,25 @@
             seat1.appendChild(nameInput1);
             deskVisual.appendChild(seat1);
 
-            // Student 2 seat
-            var seat2 = createElement("div", "seating-seat");
-            var nameInput2 = document.createElement("input");
-            nameInput2.type = "text";
-            nameInput2.className = "seating-name-input";
-            nameInput2.value = desk.student2 || "";
-            nameInput2.placeholder = "Elev 2";
-            nameInput2.style.display = state.showNames ? "block" : "none";
-            nameInput2.addEventListener("input", function() {
-              desk.student2 = nameInput2.value;
-              broadcastUpdate();
-            });
-            nameInput2.addEventListener("click", function(e) {
-              e.stopPropagation();
-            });
-            seat2.appendChild(nameInput2);
-            deskVisual.appendChild(seat2);
+            // Student 2 seat (only for double desks)
+            if (desk.deskStyle !== 'single') {
+              var seat2 = createElement("div", "seating-seat");
+              var nameInput2 = document.createElement("input");
+              nameInput2.type = "text";
+              nameInput2.className = "seating-name-input";
+              nameInput2.value = desk.student2 || "";
+              nameInput2.placeholder = "Elev 2";
+              nameInput2.style.display = state.showNames ? "block" : "none";
+              nameInput2.addEventListener("input", function() {
+                desk.student2 = nameInput2.value;
+                broadcastUpdate();
+              });
+              nameInput2.addEventListener("click", function(e) {
+                e.stopPropagation();
+              });
+              seat2.appendChild(nameInput2);
+              deskVisual.appendChild(seat2);
+            }
 
             deskEl.appendChild(deskVisual);
 
@@ -7083,7 +7110,7 @@
             if (desk.student1 && desk.student1.trim()) {
               students.push(desk.student1.trim());
             }
-            if (desk.student2 && desk.student2.trim()) {
+            if (desk.deskStyle !== 'single' && desk.student2 && desk.student2.trim()) {
               students.push(desk.student2.trim());
             }
           });
@@ -7118,7 +7145,7 @@
                 if (nameIndex < names.length) {
                   desk.student1 = names[nameIndex++];
                 }
-                if (nameIndex < names.length) {
+                if (desk.deskStyle !== 'single' && nameIndex < names.length) {
                   desk.student2 = names[nameIndex++];
                 }
               }
@@ -7163,7 +7190,7 @@
             if (studentIndex < students.length) {
               desk.student1 = students[studentIndex++];
             }
-            if (studentIndex < students.length) {
+            if (desk.deskStyle !== 'single' && studentIndex < students.length) {
               desk.student2 = students[studentIndex++];
             }
           }

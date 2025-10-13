@@ -7317,7 +7317,11 @@ body {
   position: absolute;
   width: 160px;
   height: 95px;
-  transition: transform 0.2s;
+  transition: transform 0.2s, width 0.3s ease;
+}
+
+.seating-desk[data-style='single'] {
+  width: 90px;
 }
 
 .seating-desk:hover {
@@ -7356,9 +7360,9 @@ body {
   border: none;
   background: transparent;
   text-align: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
+  font-size: 14px;
+  font-weight: 700;
+  color: #000;
   outline: none;
   padding: 4px 2px;
   white-space: nowrap;
