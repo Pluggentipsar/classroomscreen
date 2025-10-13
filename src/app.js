@@ -102,7 +102,8 @@
     "step-instruction": "📝",
     "exit-ticket": "✅",
     "vocab-wall": "📚",
-    "source-critique": "🔍"
+    "source-critique": "🔍",
+    "whiteboard": "🎨"
   };
 
   var widgetNamesSwedish = {
@@ -130,7 +131,8 @@
     "seating-chart": "Sittplatskarta",
     "attention-signal": "Uppmärksamhetssignal",
     "exit-ticket": "Exitbiljett",
-    "vocab-wall": "Ordvägg"
+    "vocab-wall": "Ordvägg",
+    "whiteboard": "Whiteboard"
   };
 
   var launcherRecentWidgets = [];
@@ -6317,6 +6319,484 @@
           document.removeEventListener("keydown", wrapper._editKeyHandler);
         }
       }
+    },
+    "whiteboard": {
+      title: "Whiteboard",
+      defaults: function() {
+        return {
+          canvasData: "",
+          drawingHistory: [],
+          studentCanDraw: false,
+          showGrid: false,
+          backgroundColor: "#ffffff"
+        };
+      },
+      render: function(container, data, onChange) {
+        var state = {
+          canvasData: data && data.canvasData ? data.canvasData : "",
+          drawingHistory: data && Array.isArray(data.drawingHistory) ? data.drawingHistory : [],
+          studentCanDraw: data && data.studentCanDraw === true,
+          showGrid: data && data.showGrid === true,
+          backgroundColor: data && data.backgroundColor ? data.backgroundColor : "#ffffff",
+          currentTool: "pen",
+          currentColor: "#000000",
+          currentBrushSize: 3,
+          isDrawing: false,
+          lastX: 0,
+          lastY: 0,
+          undoStack: [],
+          redoStack: []
+        };
+
+        // Create main wrapper
+        var wrapper = createElement("div", "whiteboard-wrapper");
+
+        // Create toolbar
+        var toolbar = createElement("div", "whiteboard-toolbar");
+
+        // Tool buttons
+        var toolsGroup = createElement("div", "whiteboard-tools-group");
+        toolsGroup.innerHTML = '<div class="whiteboard-tools-label">Verktyg:</div>';
+
+        var tools = [
+          { id: "pen", icon: "✏️", title: "Penna" },
+          { id: "eraser", icon: "🧹", title: "Sudd" },
+          { id: "line", icon: "📏", title: "Linje" },
+          { id: "rectangle", icon: "⬜", title: "Rektangel" },
+          { id: "circle", icon: "⭕", title: "Cirkel" },
+          { id: "text", icon: "T", title: "Text" }
+        ];
+
+        tools.forEach(function(tool) {
+          var btn = createElement("button", "whiteboard-tool-btn");
+          btn.type = "button";
+          btn.innerHTML = tool.icon;
+          btn.title = tool.title;
+          btn.setAttribute("data-tool", tool.id);
+          if (tool.id === state.currentTool) {
+            btn.classList.add("active");
+          }
+          btn.addEventListener("click", function() {
+            state.currentTool = tool.id;
+            toolbar.querySelectorAll(".whiteboard-tool-btn").forEach(function(b) {
+              b.classList.remove("active");
+            });
+            btn.classList.add("active");
+          });
+          toolsGroup.appendChild(btn);
+        });
+
+        toolbar.appendChild(toolsGroup);
+
+        // Color picker
+        var colorGroup = createElement("div", "whiteboard-color-group");
+        colorGroup.innerHTML = '<div class="whiteboard-tools-label">Färg:</div>';
+
+        var colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.value = state.currentColor;
+        colorInput.className = "whiteboard-color-picker";
+        colorInput.addEventListener("change", function() {
+          state.currentColor = colorInput.value;
+        });
+        colorGroup.appendChild(colorInput);
+
+        // Preset colors
+        var presetColors = ["#000000", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#FFFFFF"];
+        presetColors.forEach(function(color) {
+          var colorBtn = createElement("button", "whiteboard-color-preset");
+          colorBtn.type = "button";
+          colorBtn.style.backgroundColor = color;
+          colorBtn.title = color;
+          colorBtn.addEventListener("click", function() {
+            state.currentColor = color;
+            colorInput.value = color;
+          });
+          colorGroup.appendChild(colorBtn);
+        });
+
+        toolbar.appendChild(colorGroup);
+
+        // Brush size
+        var sizeGroup = createElement("div", "whiteboard-size-group");
+        sizeGroup.innerHTML = '<div class="whiteboard-tools-label">Storlek:</div>';
+
+        var sizeInput = document.createElement("input");
+        sizeInput.type = "range";
+        sizeInput.min = "1";
+        sizeInput.max = "20";
+        sizeInput.value = state.currentBrushSize;
+        sizeInput.className = "whiteboard-size-slider";
+        sizeInput.addEventListener("input", function() {
+          state.currentBrushSize = parseInt(sizeInput.value);
+          sizeLabel.textContent = sizeInput.value + "px";
+        });
+        sizeGroup.appendChild(sizeInput);
+
+        var sizeLabel = createElement("span", "whiteboard-size-label");
+        sizeLabel.textContent = state.currentBrushSize + "px";
+        sizeGroup.appendChild(sizeLabel);
+
+        toolbar.appendChild(sizeGroup);
+
+        // Action buttons
+        var actionsGroup = createElement("div", "whiteboard-actions-group");
+
+        var undoBtn = createElement("button", "whiteboard-action-btn");
+        undoBtn.type = "button";
+        undoBtn.innerHTML = "↶ Ångra";
+        undoBtn.title = "Ångra";
+        undoBtn.addEventListener("click", function() {
+          if (state.undoStack.length > 0) {
+            var lastState = state.undoStack.pop();
+            state.redoStack.push(canvas.toDataURL());
+            var img = new Image();
+            img.onload = function() {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0);
+              broadcastCanvasUpdate();
+            };
+            img.src = lastState;
+          }
+        });
+        actionsGroup.appendChild(undoBtn);
+
+        var redoBtn = createElement("button", "whiteboard-action-btn");
+        redoBtn.type = "button";
+        redoBtn.innerHTML = "↷ Gör om";
+        redoBtn.title = "Gör om";
+        redoBtn.addEventListener("click", function() {
+          if (state.redoStack.length > 0) {
+            var nextState = state.redoStack.pop();
+            state.undoStack.push(canvas.toDataURL());
+            var img = new Image();
+            img.onload = function() {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0);
+              broadcastCanvasUpdate();
+            };
+            img.src = nextState;
+          }
+        });
+        actionsGroup.appendChild(redoBtn);
+
+        var clearBtn = createElement("button", "whiteboard-action-btn");
+        clearBtn.type = "button";
+        clearBtn.innerHTML = "🗑️ Rensa";
+        clearBtn.title = "Rensa allt";
+        clearBtn.addEventListener("click", function() {
+          if (confirm("Vill du verkligen rensa hela whiteboarden?")) {
+            saveToUndoStack();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            broadcastCanvasUpdate();
+            if (typeof onChange === "function") { onChange(); }
+          }
+        });
+        actionsGroup.appendChild(clearBtn);
+
+        var gridBtn = createElement("button", "whiteboard-action-btn");
+        gridBtn.type = "button";
+        gridBtn.innerHTML = state.showGrid ? "⊞ Dölj rutnät" : "⊞ Visa rutnät";
+        gridBtn.title = "Visa/dölj rutnät";
+        gridBtn.addEventListener("click", function() {
+          state.showGrid = !state.showGrid;
+          gridBtn.innerHTML = state.showGrid ? "⊞ Dölj rutnät" : "⊞ Visa rutnät";
+          if (state.showGrid) {
+            drawGrid();
+          } else {
+            redrawCanvas();
+          }
+          if (typeof onChange === "function") { onChange(); }
+        });
+        actionsGroup.appendChild(gridBtn);
+
+        var exportBtn = createElement("button", "whiteboard-action-btn");
+        exportBtn.type = "button";
+        exportBtn.innerHTML = "💾 Spara";
+        exportBtn.title = "Spara som bild";
+        exportBtn.addEventListener("click", function() {
+          var link = document.createElement("a");
+          link.download = "whiteboard-" + Date.now() + ".png";
+          link.href = canvas.toDataURL();
+          link.click();
+        });
+        actionsGroup.appendChild(exportBtn);
+
+        // Student control toggle (only visible for host)
+        if (!window.isViewerMode) {
+          var studentControlBtn = createElement("button", "whiteboard-action-btn whiteboard-student-control");
+          studentControlBtn.type = "button";
+          studentControlBtn.innerHTML = state.studentCanDraw ? "🔓 Elever kan rita" : "🔒 Endast lärare";
+          studentControlBtn.title = "Tillåt/neka elever att rita";
+          studentControlBtn.classList.toggle("active", state.studentCanDraw);
+          studentControlBtn.addEventListener("click", function() {
+            state.studentCanDraw = !state.studentCanDraw;
+            studentControlBtn.innerHTML = state.studentCanDraw ? "🔓 Elever kan rita" : "🔒 Endast lärare";
+            studentControlBtn.classList.toggle("active", state.studentCanDraw);
+
+            // Broadcast student control change
+            if (window.liveRoomSync) {
+              var widgetElement = container.closest('.widget');
+              if (widgetElement) {
+                var syncId = widgetElement.getAttribute('data-sync-id');
+                if (syncId) {
+                  window.liveRoomSync.sendWidgetUpdate(syncId, 'whiteboard', {
+                    studentCanDraw: state.studentCanDraw
+                  });
+                }
+              }
+            }
+
+            if (typeof onChange === "function") { onChange(); }
+          });
+          actionsGroup.appendChild(studentControlBtn);
+        }
+
+        toolbar.appendChild(actionsGroup);
+        wrapper.appendChild(toolbar);
+
+        // Create canvas container
+        var canvasContainer = createElement("div", "whiteboard-canvas-container");
+        var canvas = document.createElement("canvas");
+        canvas.className = "whiteboard-canvas";
+        canvas.width = 1200;
+        canvas.height = 675;
+
+        var ctx = canvas.getContext("2d");
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        // Helper functions
+        function drawGrid() {
+          if (!state.showGrid) return;
+          ctx.save();
+          ctx.strokeStyle = "#e0e0e0";
+          ctx.lineWidth = 1;
+          var gridSize = 20;
+          for (var x = 0; x <= canvas.width; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+          }
+          for (var y = 0; y <= canvas.height; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        function redrawCanvas() {
+          if (state.canvasData) {
+            var img = new Image();
+            img.onload = function() {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              if (state.showGrid) {
+                drawGrid();
+              }
+              ctx.drawImage(img, 0, 0);
+            };
+            img.src = state.canvasData;
+          } else if (state.showGrid) {
+            drawGrid();
+          }
+        }
+
+        function saveToUndoStack() {
+          state.undoStack.push(canvas.toDataURL());
+          state.redoStack = [];
+          if (state.undoStack.length > 50) {
+            state.undoStack.shift();
+          }
+        }
+
+        function broadcastCanvasUpdate() {
+          state.canvasData = canvas.toDataURL();
+
+          if (!window.isViewerMode && window.liveRoomSync) {
+            var widgetElement = container.closest('.widget');
+            if (widgetElement) {
+              var syncId = widgetElement.getAttribute('data-sync-id');
+              if (syncId) {
+                window.liveRoomSync.sendWidgetUpdate(syncId, 'whiteboard', {
+                  canvasData: state.canvasData
+                });
+              }
+            }
+          }
+
+          if (typeof onChange === "function") { onChange(); }
+        }
+
+        function getMousePos(e) {
+          var rect = canvas.getBoundingClientRect();
+          return {
+            x: (e.clientX - rect.left) * (canvas.width / rect.width),
+            y: (e.clientY - rect.top) * (canvas.height / rect.height)
+          };
+        }
+
+        function startDrawing(e) {
+          // Check if student can draw
+          if (window.isViewerMode && !state.studentCanDraw) {
+            return;
+          }
+
+          saveToUndoStack();
+          state.isDrawing = true;
+          var pos = getMousePos(e);
+          state.lastX = pos.x;
+          state.lastY = pos.y;
+
+          if (state.currentTool === "text") {
+            var text = prompt("Skriv text:");
+            if (text) {
+              ctx.font = (state.currentBrushSize * 4) + "px Arial";
+              ctx.fillStyle = state.currentColor;
+              ctx.fillText(text, pos.x, pos.y);
+              broadcastCanvasUpdate();
+            }
+            state.isDrawing = false;
+          }
+        }
+
+        function draw(e) {
+          if (!state.isDrawing) return;
+          if (window.isViewerMode && !state.studentCanDraw) return;
+
+          var pos = getMousePos(e);
+
+          if (state.currentTool === "pen") {
+            ctx.strokeStyle = state.currentColor;
+            ctx.lineWidth = state.currentBrushSize;
+            ctx.beginPath();
+            ctx.moveTo(state.lastX, state.lastY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+          } else if (state.currentTool === "eraser") {
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.lineWidth = state.currentBrushSize * 2;
+            ctx.beginPath();
+            ctx.moveTo(state.lastX, state.lastY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            ctx.globalCompositeOperation = "source-over";
+          }
+
+          state.lastX = pos.x;
+          state.lastY = pos.y;
+        }
+
+        function stopDrawing(e) {
+          if (!state.isDrawing) return;
+          if (window.isViewerMode && !state.studentCanDraw) return;
+
+          var pos = getMousePos(e);
+
+          if (state.currentTool === "line") {
+            ctx.strokeStyle = state.currentColor;
+            ctx.lineWidth = state.currentBrushSize;
+            ctx.beginPath();
+            ctx.moveTo(state.lastX, state.lastY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+          } else if (state.currentTool === "rectangle") {
+            ctx.strokeStyle = state.currentColor;
+            ctx.lineWidth = state.currentBrushSize;
+            ctx.strokeRect(state.lastX, state.lastY, pos.x - state.lastX, pos.y - state.lastY);
+          } else if (state.currentTool === "circle") {
+            var radius = Math.sqrt(Math.pow(pos.x - state.lastX, 2) + Math.pow(pos.y - state.lastY, 2));
+            ctx.strokeStyle = state.currentColor;
+            ctx.lineWidth = state.currentBrushSize;
+            ctx.beginPath();
+            ctx.arc(state.lastX, state.lastY, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
+
+          state.isDrawing = false;
+          broadcastCanvasUpdate();
+        }
+
+        // Event listeners
+        canvas.addEventListener("mousedown", startDrawing);
+        canvas.addEventListener("mousemove", draw);
+        canvas.addEventListener("mouseup", stopDrawing);
+        canvas.addEventListener("mouseleave", stopDrawing);
+
+        // Touch support
+        canvas.addEventListener("touchstart", function(e) {
+          e.preventDefault();
+          var touch = e.touches[0];
+          var mouseEvent = new MouseEvent("mousedown", {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+          });
+          canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener("touchmove", function(e) {
+          e.preventDefault();
+          var touch = e.touches[0];
+          var mouseEvent = new MouseEvent("mousemove", {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+          });
+          canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener("touchend", function(e) {
+          e.preventDefault();
+          var mouseEvent = new MouseEvent("mouseup", {});
+          canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvasContainer.appendChild(canvas);
+        wrapper.appendChild(canvasContainer);
+        container.appendChild(wrapper);
+
+        // Load existing canvas data
+        redrawCanvas();
+
+        // Store state and methods
+        container._state = state;
+        container._canvas = canvas;
+        container._ctx = ctx;
+        container._redrawCanvas = redrawCanvas;
+
+        // Add sync update handler for viewers
+        var widgetElement = container.closest('.widget');
+        if (widgetElement) {
+          widgetElement._updateFromSync = function(updateData) {
+            if (updateData.hasOwnProperty('canvasData')) {
+              state.canvasData = updateData.canvasData;
+              redrawCanvas();
+            }
+            if (updateData.hasOwnProperty('studentCanDraw')) {
+              state.studentCanDraw = updateData.studentCanDraw;
+            }
+          };
+        }
+      },
+      save: function(widget) {
+        var content = widget.querySelector(".widget-content");
+        var state = content && content._state;
+        var canvas = content && content._canvas;
+
+        if (!state) {
+          return this.defaults();
+        }
+
+        return {
+          canvasData: canvas ? canvas.toDataURL() : state.canvasData,
+          drawingHistory: state.drawingHistory || [],
+          studentCanDraw: state.studentCanDraw === true,
+          showGrid: state.showGrid === true,
+          backgroundColor: state.backgroundColor || "#ffffff"
+        };
+      }
     }
   };
   function WidgetManager(layer) {
@@ -9368,6 +9848,12 @@
         if (widgetType === "step-instruction" && widget._updateFromSync) {
           widget._updateFromSync(updateData);
           console.log("Updated step-instruction widget:", widgetId, updateData);
+        }
+
+        // Handle whiteboard widget updates
+        if (widgetType === "whiteboard" && widget._updateFromSync) {
+          widget._updateFromSync(updateData);
+          console.log("Updated whiteboard widget:", widgetId, updateData);
         }
 
         return;
