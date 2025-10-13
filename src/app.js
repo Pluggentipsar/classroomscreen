@@ -46,6 +46,129 @@
   var LESSONS_KEY = "classroomscreen-lessons-v1";
   var CURRENT_LESSON_KEY = "classroomscreen-current-lesson-v1";
   var FOOTER_COLLAPSED_KEY = "classroomscreen-footer-collapsed-v1";
+  var CLASS_LISTS_KEY = "classroomscreen-class-lists-v1";
+
+  // Class Lists Management
+  function getAllClassLists() {
+    try {
+      var data = window.localStorage.getItem(CLASS_LISTS_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error("Could not load class lists", error);
+      return [];
+    }
+  }
+
+  function saveClassLists(lists) {
+    try {
+      window.localStorage.setItem(CLASS_LISTS_KEY, JSON.stringify(lists));
+      return true;
+    } catch (error) {
+      console.error("Could not save class lists", error);
+      return false;
+    }
+  }
+
+  function createClassList(name, students) {
+    var lists = getAllClassLists();
+    var newList = {
+      id: "list-" + Date.now(),
+      name: name,
+      students: students,
+      created: Date.now(),
+      updated: Date.now()
+    };
+    lists.push(newList);
+    saveClassLists(lists);
+    return newList;
+  }
+
+  function updateClassList(id, name, students) {
+    var lists = getAllClassLists();
+    var index = lists.findIndex(function(l) { return l.id === id; });
+    if (index !== -1) {
+      lists[index].name = name;
+      lists[index].students = students;
+      lists[index].updated = Date.now();
+      saveClassLists(lists);
+      return true;
+    }
+    return false;
+  }
+
+  function deleteClassList(id) {
+    var lists = getAllClassLists();
+    var filtered = lists.filter(function(l) { return l.id !== id; });
+    saveClassLists(filtered);
+    return true;
+  }
+
+  function getClassList(id) {
+    var lists = getAllClassLists();
+    return lists.find(function(l) { return l.id === id; });
+  }
+
+  // Seating Chart Layouts Management
+  var SEATING_LAYOUTS_KEY = "classroomscreen-seating-layouts-v1";
+
+  function getAllSeatingLayouts() {
+    try {
+      var data = window.localStorage.getItem(SEATING_LAYOUTS_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error("Could not load seating layouts", error);
+      return [];
+    }
+  }
+
+  function saveSeatingLayouts(layouts) {
+    try {
+      window.localStorage.setItem(SEATING_LAYOUTS_KEY, JSON.stringify(layouts));
+      return true;
+    } catch (error) {
+      console.error("Could not save seating layouts", error);
+      return false;
+    }
+  }
+
+  function createSeatingLayout(name, desks) {
+    var layouts = getAllSeatingLayouts();
+    var newLayout = {
+      id: "layout-" + Date.now(),
+      name: name,
+      desks: desks,
+      created: Date.now(),
+      updated: Date.now()
+    };
+    layouts.push(newLayout);
+    saveSeatingLayouts(layouts);
+    return newLayout;
+  }
+
+  function updateSeatingLayout(id, name, desks) {
+    var layouts = getAllSeatingLayouts();
+    var index = layouts.findIndex(function(l) { return l.id === id; });
+    if (index !== -1) {
+      layouts[index].name = name;
+      layouts[index].desks = desks;
+      layouts[index].updated = Date.now();
+      saveSeatingLayouts(layouts);
+      return true;
+    }
+    return false;
+  }
+
+  function deleteSeatingLayout(id) {
+    var layouts = getAllSeatingLayouts();
+    var filtered = layouts.filter(function(l) { return l.id !== id; });
+    saveSeatingLayouts(filtered);
+    return true;
+  }
+
+  function getSeatingLayout(id) {
+    var layouts = getAllSeatingLayouts();
+    return layouts.find(function(l) { return l.id === id; });
+  }
 
   var BUILT_IN_BACKGROUNDS = [
     { id: "background-autumn", label: "H\u00f6stl\u00f6v", url: "https://images.unsplash.com/photo-1504199367641-aba8151af406?auto=format&fit=crop&w=1920&q=80", builtIn: true },
@@ -2798,6 +2921,39 @@
           history: ensureArray(data && data.history)
         };
 
+        // Class list selector
+        var classLists = getAllClassLists();
+        if (classLists.length > 0) {
+          var classListSelect = document.createElement("select");
+          classListSelect.className = "widget-select";
+          var defaultOption = document.createElement("option");
+          defaultOption.value = "";
+          defaultOption.textContent = "📚 Ladda klasslista...";
+          classListSelect.appendChild(defaultOption);
+
+          classLists.forEach(function(list) {
+            var option = document.createElement("option");
+            option.value = list.id;
+            option.textContent = list.name + " (" + list.students.length + " elever)";
+            classListSelect.appendChild(option);
+          });
+
+          classListSelect.addEventListener("change", function() {
+            if (classListSelect.value) {
+              var list = getClassList(classListSelect.value);
+              if (list && list.students.length > 0) {
+                state.list = list.students.join("\n");
+                state.history = [];
+                textarea.value = state.list;
+                if (typeof onChange === "function") { onChange(); }
+                classListSelect.value = "";
+              }
+            }
+          });
+
+          container.appendChild(classListSelect);
+        }
+
         var textarea = document.createElement("textarea");
         textarea.rows = 6;
         textarea.placeholder = "Namn, ett per rad";
@@ -3749,6 +3905,39 @@
           groupSize: data && typeof data.groupSize === "number" ? data.groupSize : 3,
           groups: ensureArray(data && data.groups)
         };
+
+        // Class list selector
+        var classLists = getAllClassLists();
+        if (classLists.length > 0) {
+          var classListSelect = document.createElement("select");
+          classListSelect.className = "widget-select";
+          var defaultOption = document.createElement("option");
+          defaultOption.value = "";
+          defaultOption.textContent = "📚 Ladda klasslista...";
+          classListSelect.appendChild(defaultOption);
+
+          classLists.forEach(function(list) {
+            var option = document.createElement("option");
+            option.value = list.id;
+            option.textContent = list.name + " (" + list.students.length + " elever)";
+            classListSelect.appendChild(option);
+          });
+
+          classListSelect.addEventListener("change", function() {
+            if (classListSelect.value) {
+              var list = getClassList(classListSelect.value);
+              if (list && list.students.length > 0) {
+                state.names = list.students.join("\n");
+                state.groups = [];
+                textarea.value = state.names;
+                if (typeof onChange === "function") { onChange(); }
+                classListSelect.value = "";
+              }
+            }
+          });
+
+          container.appendChild(classListSelect);
+        }
 
         var textarea = document.createElement("textarea");
         textarea.rows = 6;
@@ -6843,6 +7032,55 @@
         var studentsGroup = createElement("div", "seating-chart-group");
         studentsGroup.innerHTML = '<div class="seating-chart-label">Elever:</div>';
 
+        // Class list selector
+        var classLists = getAllClassLists();
+        if (classLists.length > 0) {
+          var classListSelect = createElement("select", "seating-chart-select");
+          classListSelect.title = "Välj en klasslista att ladda";
+          var defaultOption = createElement("option");
+          defaultOption.value = "";
+          defaultOption.textContent = "📚 Ladda klasslista...";
+          classListSelect.appendChild(defaultOption);
+
+          classLists.forEach(function(list) {
+            var option = createElement("option");
+            option.value = list.id;
+            option.textContent = list.name + " (" + list.students.length + " elever)";
+            classListSelect.appendChild(option);
+          });
+
+          classListSelect.addEventListener("change", function() {
+            if (classListSelect.value) {
+              var list = getClassList(classListSelect.value);
+              if (list && list.students.length > 0) {
+                // Clear all desks first
+                state.desks.forEach(function(desk) {
+                  desk.student1 = "";
+                  desk.student2 = "";
+                });
+
+                // Fill desks with students from class list
+                var nameIndex = 0;
+                for (var i = 0; i < state.desks.length && nameIndex < list.students.length; i++) {
+                  var desk = state.desks[i];
+                  if (nameIndex < list.students.length) {
+                    desk.student1 = list.students[nameIndex++];
+                  }
+                  if (desk.deskStyle !== 'single' && nameIndex < list.students.length) {
+                    desk.student2 = list.students[nameIndex++];
+                  }
+                }
+
+                render();
+                broadcastUpdate();
+                classListSelect.value = "";
+              }
+            }
+          });
+
+          studentsGroup.appendChild(classListSelect);
+        }
+
         var studentListBtn = createElement("button", "seating-chart-btn");
         studentListBtn.type = "button";
         studentListBtn.innerHTML = "📋 Elevlista";
@@ -6957,6 +7195,7 @@
 
         // View options
         var viewGroup = createElement("div", "seating-chart-group");
+        viewGroup.innerHTML = '<div class="seating-chart-label">Vy:</div>';
 
         var toggleNamesBtn = createElement("button", "seating-chart-btn");
         toggleNamesBtn.type = "button";
@@ -6970,7 +7209,79 @@
         });
         viewGroup.appendChild(toggleNamesBtn);
 
+        var toggleToolbarBtn = createElement("button", "seating-chart-btn");
+        toggleToolbarBtn.type = "button";
+        toggleToolbarBtn.innerHTML = "📐 Dölj verktygsfält";
+        toggleToolbarBtn.title = "Dölj/visa verktygsfält";
+
+        // Create floating button for when toolbar is hidden
+        var floatingBtn = createElement("button", "seating-chart-floating-btn");
+        floatingBtn.type = "button";
+        floatingBtn.innerHTML = "📐";
+        floatingBtn.title = "Visa verktygsfält";
+        floatingBtn.style.display = "none";
+
+        function toggleToolbar() {
+          var isHidden = toolbar.style.display === "none";
+          if (isHidden) {
+            toolbar.style.display = "flex";
+            toggleToolbarBtn.innerHTML = "📐 Dölj verktygsfält";
+            wrapper.classList.remove("toolbar-hidden");
+            floatingBtn.style.display = "none";
+          } else {
+            toolbar.style.display = "none";
+            toggleToolbarBtn.innerHTML = "📐 Visa verktygsfält";
+            wrapper.classList.add("toolbar-hidden");
+            floatingBtn.style.display = "flex";
+          }
+        }
+
+        toggleToolbarBtn.addEventListener("click", toggleToolbar);
+        floatingBtn.addEventListener("click", toggleToolbar);
+
+        viewGroup.appendChild(toggleToolbarBtn);
+        wrapper.appendChild(floatingBtn);
+
+        var fullscreenBtn = createElement("button", "seating-chart-btn");
+        fullscreenBtn.type = "button";
+        fullscreenBtn.innerHTML = "⛶ Helskärm";
+        fullscreenBtn.title = "Visa i helskärm";
+        fullscreenBtn.addEventListener("click", function() {
+          if (wrapper.requestFullscreen) {
+            wrapper.requestFullscreen();
+          } else if (wrapper.webkitRequestFullscreen) {
+            wrapper.webkitRequestFullscreen();
+          } else if (wrapper.msRequestFullscreen) {
+            wrapper.msRequestFullscreen();
+          }
+        });
+        viewGroup.appendChild(fullscreenBtn);
+
         toolbar.appendChild(viewGroup);
+
+        // Save/Load options
+        var saveGroup = createElement("div", "seating-chart-group");
+        saveGroup.innerHTML = '<div class="seating-chart-label">Spara:</div>';
+
+        var saveBtn = createElement("button", "seating-chart-btn");
+        saveBtn.type = "button";
+        saveBtn.innerHTML = "💾 Spara placering";
+        saveBtn.title = "Spara nuvarande placering";
+        saveBtn.addEventListener("click", function() {
+          showSaveLayoutDialog();
+        });
+        saveGroup.appendChild(saveBtn);
+
+        var loadBtn = createElement("button", "seating-chart-btn");
+        loadBtn.type = "button";
+        loadBtn.innerHTML = "📂 Ladda placering";
+        loadBtn.title = "Ladda sparad placering";
+        loadBtn.addEventListener("click", function() {
+          showLoadLayoutDialog();
+        });
+        saveGroup.appendChild(loadBtn);
+
+        toolbar.appendChild(saveGroup);
 
         wrapper.appendChild(toolbar);
 
@@ -6997,6 +7308,7 @@
             var nameDiv1 = createElement("div", "seating-name-input");
             nameDiv1.contentEditable = "true";
             nameDiv1.textContent = desk.student1 || "";
+            nameDiv1.style.cursor = "text";
             if (!desk.student1) {
               nameDiv1.setAttribute("data-placeholder", "Elev 1");
             }
@@ -7030,6 +7342,7 @@
               var nameDiv2 = createElement("div", "seating-name-input");
               nameDiv2.contentEditable = "true";
               nameDiv2.textContent = desk.student2 || "";
+              nameDiv2.style.cursor = "text";
               if (!desk.student2) {
                 nameDiv2.setAttribute("data-placeholder", "Elev 2");
               }
@@ -7078,7 +7391,9 @@
               // Make draggable (only for host)
               deskEl.style.cursor = "move";
               deskEl.addEventListener("mousedown", function(e) {
-                if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") {
+                if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON" ||
+                    e.target.classList.contains("seating-name-input") ||
+                    e.target.contentEditable === "true") {
                   return;
                 }
                 e.preventDefault();
@@ -7144,13 +7459,198 @@
           return students;
         }
 
+        function showSaveLayoutDialog() {
+          var layoutName = prompt("Namnge din klassrumsplacering:", "Min klass");
+          if (layoutName && layoutName.trim()) {
+            createSeatingLayout(layoutName.trim(), JSON.parse(JSON.stringify(state.desks)));
+            alert("Placeringen '" + layoutName.trim() + "' har sparats!");
+          }
+        }
+
+        function showLoadLayoutDialog() {
+          var layouts = getAllSeatingLayouts();
+          if (layouts.length === 0) {
+            alert("Inga sparade placeringar finns. Använd 'Spara placering' först!");
+            return;
+          }
+
+          var overlay = createElement("div", "student-list-modal-overlay");
+          var modal = createElement("div", "student-list-modal");
+
+          var header = createElement("div", "student-list-modal-header");
+          var title = createElement("h2");
+          title.textContent = "Ladda klassrumsplacering";
+          var subtitle = createElement("p", "subtitle");
+          subtitle.textContent = "Välj en sparad placering att ladda";
+          header.appendChild(title);
+          header.appendChild(subtitle);
+
+          var body = createElement("div", "student-list-modal-body");
+
+          layouts.forEach(function(layout) {
+            var card = createElement("div", "seating-layout-card");
+
+            var cardHeader = createElement("div", "seating-layout-card-header");
+            var cardTitle = createElement("h3");
+            cardTitle.textContent = layout.name;
+            var cardMeta = createElement("span", "seating-layout-meta");
+            cardMeta.textContent = layout.desks.length + " bänkar";
+            cardHeader.appendChild(cardTitle);
+            cardHeader.appendChild(cardMeta);
+
+            var cardActions = createElement("div", "seating-layout-actions");
+            var loadCardBtn = createElement("button", "student-list-btn student-list-btn-primary");
+            loadCardBtn.type = "button";
+            loadCardBtn.textContent = "📂 Ladda";
+            loadCardBtn.addEventListener("click", function() {
+              state.desks = JSON.parse(JSON.stringify(layout.desks));
+              render();
+              broadcastUpdate();
+              document.body.removeChild(overlay);
+            });
+
+            var deleteCardBtn = createElement("button", "student-list-btn student-list-btn-secondary");
+            deleteCardBtn.type = "button";
+            deleteCardBtn.textContent = "🗑️ Ta bort";
+            deleteCardBtn.addEventListener("click", function() {
+              if (confirm("Vill du verkligen ta bort placeringen '" + layout.name + "'?")) {
+                deleteSeatingLayout(layout.id);
+                document.body.removeChild(overlay);
+                showLoadLayoutDialog();
+              }
+            });
+
+            cardActions.appendChild(loadCardBtn);
+            cardActions.appendChild(deleteCardBtn);
+
+            card.appendChild(cardHeader);
+            card.appendChild(cardActions);
+            body.appendChild(card);
+          });
+
+          var footer = createElement("div", "student-list-modal-footer");
+          var closeBtn = createElement("button", "student-list-btn student-list-btn-secondary");
+          closeBtn.type = "button";
+          closeBtn.textContent = "Stäng";
+          closeBtn.addEventListener("click", function() {
+            document.body.removeChild(overlay);
+          });
+          footer.appendChild(closeBtn);
+
+          modal.appendChild(header);
+          modal.appendChild(body);
+          modal.appendChild(footer);
+          overlay.appendChild(modal);
+
+          overlay.addEventListener("click", function(e) {
+            if (e.target === overlay) {
+              document.body.removeChild(overlay);
+            }
+          });
+
+          function handleEscape(e) {
+            if (e.key === "Escape") {
+              document.body.removeChild(overlay);
+              document.removeEventListener("keydown", handleEscape);
+            }
+          }
+          document.addEventListener("keydown", handleEscape);
+
+          document.body.appendChild(overlay);
+        }
+
         function showStudentListDialog() {
           var students = getAllStudents();
           var currentList = students.join("\n");
-          var newList = prompt("Ange elevnamn (ett per rad):\n\nKlistra in hela klasslistan så placeras eleverna ut automatiskt!", currentList);
 
-          if (newList !== null) {
-            var names = newList.split("\n").map(function(n) { return n.trim(); }).filter(function(n) { return n.length > 0; });
+          // Calculate available seats
+          var totalSeats = 0;
+          state.desks.forEach(function(desk) {
+            totalSeats += desk.deskStyle === 'single' ? 1 : 2;
+          });
+
+          // Create modal overlay
+          var overlay = createElement("div", "student-list-modal-overlay");
+
+          // Create modal
+          var modal = createElement("div", "student-list-modal");
+
+          // Header
+          var header = createElement("div", "student-list-modal-header");
+          var title = createElement("h2");
+          title.textContent = "Hantera elevlista";
+          var subtitle = createElement("p", "subtitle");
+          subtitle.textContent = "Lägg till eller ändra elever i sittplatskartan";
+          header.appendChild(title);
+          header.appendChild(subtitle);
+
+          // Body
+          var body = createElement("div", "student-list-modal-body");
+
+          // Instructions
+          var instructions = createElement("div", "student-list-instructions");
+          instructions.innerHTML = '<h3>📋 Instruktioner</h3>' +
+            '<ul>' +
+            '<li>Skriv <strong>ett elevnamn per rad</strong></li>' +
+            '<li>Du kan kopiera och klistra in en hel klasslista</li>' +
+            '<li>Eleverna placeras automatiskt på bänkarna</li>' +
+            '<li>Lämna tomt för att rensa alla namn</li>' +
+            '</ul>' +
+            '<div class="student-list-example">Exempel:<br>Anna Andersson<br>Bert Bertilsson<br>Cecilia Carlsson</div>';
+          body.appendChild(instructions);
+
+          // Textarea wrapper
+          var textareaWrapper = createElement("div", "student-list-textarea-wrapper");
+          var textarea = createElement("textarea", "student-list-textarea");
+          textarea.placeholder = "Skriv eller klistra in elevnamn här...\n\nEtt namn per rad";
+          textarea.value = currentList;
+          textareaWrapper.appendChild(textarea);
+          body.appendChild(textareaWrapper);
+
+          // Counter
+          var counter = createElement("div", "student-list-counter");
+          body.appendChild(counter);
+
+          // Function to update counter
+          function updateCounter() {
+            var text = textarea.value;
+            var names = text.split("\n").map(function(n) { return n.trim(); }).filter(function(n) { return n.length > 0; });
+            var count = names.length;
+
+            counter.className = "student-list-counter";
+
+            if (count === 0) {
+              counter.textContent = "📝 Inga elever angivna. Alla namn kommer att rensas.";
+              counter.classList.add("warning");
+            } else if (count <= totalSeats) {
+              counter.textContent = "✅ " + count + " elev" + (count !== 1 ? "er" : "") + " kommer att placeras (" + totalSeats + " platser tillgängliga)";
+              counter.classList.add("success");
+            } else {
+              counter.textContent = "⚠️ " + count + " elever men bara " + totalSeats + " platser! " + (count - totalSeats) + " elev" + ((count - totalSeats) !== 1 ? "er" : "") + " får inte plats.";
+              counter.classList.add("error");
+            }
+          }
+
+          // Update counter on input
+          textarea.addEventListener("input", updateCounter);
+          updateCounter();
+
+          // Footer
+          var footer = createElement("div", "student-list-modal-footer");
+
+          var cancelBtn = createElement("button", "student-list-btn student-list-btn-secondary");
+          cancelBtn.type = "button";
+          cancelBtn.textContent = "Avbryt";
+          cancelBtn.addEventListener("click", function() {
+            document.body.removeChild(overlay);
+          });
+
+          var saveBtn = createElement("button", "student-list-btn student-list-btn-primary");
+          saveBtn.type = "button";
+          saveBtn.textContent = "Spara och placera elever";
+          saveBtn.addEventListener("click", function() {
+            var text = textarea.value;
+            var names = text.split("\n").map(function(n) { return n.trim(); }).filter(function(n) { return n.length > 0; });
 
             if (names.length === 0) {
               // Clear all desks if no names
@@ -7176,16 +7676,46 @@
                   desk.student2 = names[nameIndex++];
                 }
               }
-
-              // If there are more students than desk spaces, alert the user
-              if (nameIndex < names.length) {
-                alert("OBS: " + (names.length - nameIndex) + " elever fick inte plats. Lägg till fler bänkar eller ta bort några namn.");
-              }
             }
 
             render();
             broadcastUpdate();
+            document.body.removeChild(overlay);
+          });
+
+          footer.appendChild(cancelBtn);
+          footer.appendChild(saveBtn);
+
+          // Assemble modal
+          modal.appendChild(header);
+          modal.appendChild(body);
+          modal.appendChild(footer);
+          overlay.appendChild(modal);
+
+          // Close on overlay click
+          overlay.addEventListener("click", function(e) {
+            if (e.target === overlay) {
+              document.body.removeChild(overlay);
+            }
+          });
+
+          // Close on Escape key
+          function handleEscape(e) {
+            if (e.key === "Escape") {
+              document.body.removeChild(overlay);
+              document.removeEventListener("keydown", handleEscape);
+            }
           }
+          document.addEventListener("keydown", handleEscape);
+
+          // Add to DOM
+          document.body.appendChild(overlay);
+
+          // Focus textarea
+          setTimeout(function() {
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+          }, 100);
         }
 
         function randomizeSeating() {
@@ -9530,6 +10060,231 @@
     }
   }
 
+  // Class List Manager Modal
+  function showClassListManager() {
+    var overlay = createElement("div", "class-list-manager-overlay");
+    var modal = createElement("div", "class-list-manager-modal");
+
+    // Header
+    var header = createElement("div", "class-list-manager-header");
+    var title = createElement("h2");
+    title.textContent = "Hantera klasslistor";
+    var subtitle = createElement("p", "subtitle");
+    subtitle.textContent = "Skapa och hantera klasslistor som kan användas i widgets";
+    header.appendChild(title);
+    header.appendChild(subtitle);
+
+    // Body
+    var body = createElement("div", "class-list-manager-body");
+
+    // Info box
+    var infoBox = createElement("div", "class-list-info-box");
+    infoBox.innerHTML = '<strong>💡 Använd klasslistor i:</strong><br>• Slumpa namn<br>• Gruppmakare<br>• Sittplatskarta';
+    body.appendChild(infoBox);
+
+    // Lists container
+    var listsContainer = createElement("div", "class-lists-container");
+    body.appendChild(listsContainer);
+
+    function renderLists() {
+      listsContainer.innerHTML = "";
+      var lists = getAllClassLists();
+
+      if (lists.length === 0) {
+        var emptyMsg = createElement("div", "class-lists-empty");
+        emptyMsg.innerHTML = '<p>📋 Inga klasslistor ännu</p><p class="hint">Skapa din första klasslista med knappen nedan</p>';
+        listsContainer.appendChild(emptyMsg);
+      } else {
+        lists.forEach(function(list) {
+          var card = createElement("div", "class-list-card");
+
+          var cardHeader = createElement("div", "class-list-card-header");
+          var cardTitle = createElement("h3");
+          cardTitle.textContent = list.name;
+          var cardMeta = createElement("div", "class-list-card-meta");
+          cardMeta.textContent = list.students.length + " elever";
+          cardHeader.appendChild(cardTitle);
+          cardHeader.appendChild(cardMeta);
+
+          var studentList = createElement("div", "class-list-students");
+          var previewCount = Math.min(3, list.students.length);
+          for (var i = 0; i < previewCount; i++) {
+            var studentChip = createElement("span", "class-list-student-chip");
+            studentChip.textContent = list.students[i];
+            studentList.appendChild(studentChip);
+          }
+          if (list.students.length > 3) {
+            var moreChip = createElement("span", "class-list-student-chip more");
+            moreChip.textContent = "+" + (list.students.length - 3) + " till";
+            studentList.appendChild(moreChip);
+          }
+
+          var cardActions = createElement("div", "class-list-card-actions");
+          var editBtn = createElement("button", "class-list-btn class-list-btn-small");
+          editBtn.type = "button";
+          editBtn.textContent = "✏️ Redigera";
+          editBtn.addEventListener("click", function() {
+            showEditClassListDialog(list);
+          });
+          var deleteBtn = createElement("button", "class-list-btn class-list-btn-small class-list-btn-danger");
+          deleteBtn.type = "button";
+          deleteBtn.textContent = "🗑️ Ta bort";
+          deleteBtn.addEventListener("click", function() {
+            if (confirm("Vill du verkligen ta bort klasslistan '" + list.name + "'?")) {
+              deleteClassList(list.id);
+              renderLists();
+            }
+          });
+          cardActions.appendChild(editBtn);
+          cardActions.appendChild(deleteBtn);
+
+          card.appendChild(cardHeader);
+          card.appendChild(studentList);
+          card.appendChild(cardActions);
+          listsContainer.appendChild(card);
+        });
+      }
+    }
+
+    function showEditClassListDialog(existingList) {
+      var editOverlay = createElement("div", "class-list-edit-overlay");
+      var editModal = createElement("div", "class-list-edit-modal");
+
+      var editHeader = createElement("div", "class-list-edit-header");
+      var editTitle = createElement("h3");
+      editTitle.textContent = existingList ? "Redigera klasslista" : "Skapa ny klasslista";
+      editHeader.appendChild(editTitle);
+
+      var editBody = createElement("div", "class-list-edit-body");
+
+      var nameLabel = createElement("label");
+      nameLabel.textContent = "Namn på klasslistan";
+      var nameInput = createElement("input", "class-list-input");
+      nameInput.type = "text";
+      nameInput.placeholder = "T.ex. Matte 5A, Svenska 7B...";
+      nameInput.value = existingList ? existingList.name : "";
+
+      var studentsLabel = createElement("label");
+      studentsLabel.textContent = "Elevnamn (ett per rad)";
+      var studentsTextarea = createElement("textarea", "class-list-textarea");
+      studentsTextarea.placeholder = "Anna Andersson\nBert Bertilsson\nCecilia Carlsson";
+      studentsTextarea.value = existingList ? existingList.students.join("\n") : "";
+
+      var counter = createElement("div", "class-list-counter");
+      function updateCounter() {
+        var text = studentsTextarea.value;
+        var names = text.split("\n").map(function(n) { return n.trim(); }).filter(function(n) { return n.length > 0; });
+        counter.textContent = "📊 " + names.length + " elev" + (names.length !== 1 ? "er" : "");
+      }
+      studentsTextarea.addEventListener("input", updateCounter);
+      updateCounter();
+
+      editBody.appendChild(nameLabel);
+      editBody.appendChild(nameInput);
+      editBody.appendChild(studentsLabel);
+      editBody.appendChild(studentsTextarea);
+      editBody.appendChild(counter);
+
+      var editFooter = createElement("div", "class-list-edit-footer");
+      var cancelBtn = createElement("button", "class-list-btn class-list-btn-secondary");
+      cancelBtn.type = "button";
+      cancelBtn.textContent = "Avbryt";
+      cancelBtn.addEventListener("click", function() {
+        document.body.removeChild(editOverlay);
+      });
+
+      var saveBtn = createElement("button", "class-list-btn class-list-btn-primary");
+      saveBtn.type = "button";
+      saveBtn.textContent = existingList ? "Spara ändringar" : "Skapa klasslista";
+      saveBtn.addEventListener("click", function() {
+        var name = nameInput.value.trim();
+        var text = studentsTextarea.value;
+        var students = text.split("\n").map(function(n) { return n.trim(); }).filter(function(n) { return n.length > 0; });
+
+        if (!name) {
+          alert("Ange ett namn för klasslistan");
+          return;
+        }
+        if (students.length === 0) {
+          alert("Lägg till minst en elev");
+          return;
+        }
+
+        if (existingList) {
+          updateClassList(existingList.id, name, students);
+        } else {
+          createClassList(name, students);
+        }
+
+        document.body.removeChild(editOverlay);
+        renderLists();
+      });
+
+      editFooter.appendChild(cancelBtn);
+      editFooter.appendChild(saveBtn);
+
+      editModal.appendChild(editHeader);
+      editModal.appendChild(editBody);
+      editModal.appendChild(editFooter);
+      editOverlay.appendChild(editModal);
+
+      editOverlay.addEventListener("click", function(e) {
+        if (e.target === editOverlay) {
+          document.body.removeChild(editOverlay);
+        }
+      });
+
+      document.body.appendChild(editOverlay);
+      setTimeout(function() {
+        nameInput.focus();
+      }, 100);
+    }
+
+    renderLists();
+
+    // Footer
+    var footer = createElement("div", "class-list-manager-footer");
+    var addBtn = createElement("button", "class-list-btn class-list-btn-primary");
+    addBtn.type = "button";
+    addBtn.textContent = "+ Skapa ny klasslista";
+    addBtn.addEventListener("click", function() {
+      showEditClassListDialog(null);
+    });
+    var closeBtn = createElement("button", "class-list-btn class-list-btn-secondary");
+    closeBtn.type = "button";
+    closeBtn.textContent = "Stäng";
+    closeBtn.addEventListener("click", function() {
+      document.body.removeChild(overlay);
+    });
+    footer.appendChild(addBtn);
+    footer.appendChild(closeBtn);
+
+    // Assemble modal
+    modal.appendChild(header);
+    modal.appendChild(body);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+
+    // Close on overlay click
+    overlay.addEventListener("click", function(e) {
+      if (e.target === overlay) {
+        document.body.removeChild(overlay);
+      }
+    });
+
+    // Close on Escape
+    function handleEscape(e) {
+      if (e.key === "Escape") {
+        document.body.removeChild(overlay);
+        document.removeEventListener("keydown", handleEscape);
+      }
+    }
+    document.addEventListener("keydown", handleEscape);
+
+    // Add to DOM
+    document.body.appendChild(overlay);
+  }
+
   function initHeaderActions() {
     var header = document.querySelector(".app-header");
     var headerDrawer = document.getElementById("headerDrawer");
@@ -9655,6 +10410,11 @@
         if (symbolOverlay) {
           symbolOverlay.setAttribute("aria-hidden", "true");
         }
+        return;
+      }
+      if (action === "manage-class-lists") {
+        showClassListManager();
+        closeMenu();
         return;
       }
       if (action === "settings") {
