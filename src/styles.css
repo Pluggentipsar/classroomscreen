@@ -7089,6 +7089,15 @@ body {
   overflow: hidden;
 }
 
+.whiteboard-wrapper:fullscreen {
+  background: white;
+  border-radius: 0;
+}
+
+.whiteboard-wrapper:fullscreen .whiteboard-canvas-container {
+  background: white;
+}
+
 .whiteboard-toolbar {
   display: flex;
   gap: 16px;

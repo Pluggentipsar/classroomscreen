@@ -6713,6 +6713,21 @@
         });
         actionsGroup.appendChild(exportBtn);
 
+        var fullscreenBtn = createElement("button", "whiteboard-action-btn");
+        fullscreenBtn.type = "button";
+        fullscreenBtn.innerHTML = "⛶ Helskärm";
+        fullscreenBtn.title = "Visa i helskärm";
+        fullscreenBtn.addEventListener("click", function() {
+          if (wrapper.requestFullscreen) {
+            wrapper.requestFullscreen();
+          } else if (wrapper.webkitRequestFullscreen) {
+            wrapper.webkitRequestFullscreen();
+          } else if (wrapper.msRequestFullscreen) {
+            wrapper.msRequestFullscreen();
+          }
+        });
+        actionsGroup.appendChild(fullscreenBtn);
+
         // Student control toggle (only visible for host)
         if (!window.isViewerMode) {
           var studentControlBtn = createElement("button", "whiteboard-action-btn whiteboard-student-control");
@@ -6841,6 +6856,11 @@
           state.lastX = pos.x;
           state.lastY = pos.y;
 
+          // Save snapshot for shape tools
+          if (state.currentTool === "line" || state.currentTool === "rectangle" || state.currentTool === "circle") {
+            shapePreviewSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          }
+
           if (state.currentTool === "text") {
             var text = prompt("Skriv text:");
             if (text) {
@@ -6852,6 +6872,9 @@
             state.isDrawing = false;
           }
         }
+
+        // Store snapshot for shape preview
+        var shapePreviewSnapshot = null;
 
         function draw(e) {
           if (!state.isDrawing) return;
@@ -6866,6 +6889,8 @@
             ctx.moveTo(state.lastX, state.lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
+            state.lastX = pos.x;
+            state.lastY = pos.y;
           } else if (state.currentTool === "eraser") {
             ctx.globalCompositeOperation = "destination-out";
             ctx.lineWidth = state.currentBrushSize * 2;
@@ -6874,10 +6899,31 @@
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             ctx.globalCompositeOperation = "source-over";
-          }
+            state.lastX = pos.x;
+            state.lastY = pos.y;
+          } else if (state.currentTool === "line" || state.currentTool === "rectangle" || state.currentTool === "circle") {
+            // Show preview while dragging
+            if (shapePreviewSnapshot) {
+              ctx.putImageData(shapePreviewSnapshot, 0, 0);
+            }
 
-          state.lastX = pos.x;
-          state.lastY = pos.y;
+            ctx.strokeStyle = state.currentColor;
+            ctx.lineWidth = state.currentBrushSize;
+
+            if (state.currentTool === "line") {
+              ctx.beginPath();
+              ctx.moveTo(state.lastX, state.lastY);
+              ctx.lineTo(pos.x, pos.y);
+              ctx.stroke();
+            } else if (state.currentTool === "rectangle") {
+              ctx.strokeRect(state.lastX, state.lastY, pos.x - state.lastX, pos.y - state.lastY);
+            } else if (state.currentTool === "circle") {
+              var radius = Math.sqrt(Math.pow(pos.x - state.lastX, 2) + Math.pow(pos.y - state.lastY, 2));
+              ctx.beginPath();
+              ctx.arc(state.lastX, state.lastY, radius, 0, 2 * Math.PI);
+              ctx.stroke();
+            }
+          }
         }
 
         function stopDrawing(e) {
@@ -6886,24 +6932,29 @@
 
           var pos = getMousePos(e);
 
-          if (state.currentTool === "line") {
+          // For shape tools, restore snapshot and draw final shape
+          if (state.currentTool === "line" || state.currentTool === "rectangle" || state.currentTool === "circle") {
+            if (shapePreviewSnapshot) {
+              ctx.putImageData(shapePreviewSnapshot, 0, 0);
+              shapePreviewSnapshot = null;
+            }
+
             ctx.strokeStyle = state.currentColor;
             ctx.lineWidth = state.currentBrushSize;
-            ctx.beginPath();
-            ctx.moveTo(state.lastX, state.lastY);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-          } else if (state.currentTool === "rectangle") {
-            ctx.strokeStyle = state.currentColor;
-            ctx.lineWidth = state.currentBrushSize;
-            ctx.strokeRect(state.lastX, state.lastY, pos.x - state.lastX, pos.y - state.lastY);
-          } else if (state.currentTool === "circle") {
-            var radius = Math.sqrt(Math.pow(pos.x - state.lastX, 2) + Math.pow(pos.y - state.lastY, 2));
-            ctx.strokeStyle = state.currentColor;
-            ctx.lineWidth = state.currentBrushSize;
-            ctx.beginPath();
-            ctx.arc(state.lastX, state.lastY, radius, 0, 2 * Math.PI);
-            ctx.stroke();
+
+            if (state.currentTool === "line") {
+              ctx.beginPath();
+              ctx.moveTo(state.lastX, state.lastY);
+              ctx.lineTo(pos.x, pos.y);
+              ctx.stroke();
+            } else if (state.currentTool === "rectangle") {
+              ctx.strokeRect(state.lastX, state.lastY, pos.x - state.lastX, pos.y - state.lastY);
+            } else if (state.currentTool === "circle") {
+              var radius = Math.sqrt(Math.pow(pos.x - state.lastX, 2) + Math.pow(pos.y - state.lastY, 2));
+              ctx.beginPath();
+              ctx.arc(state.lastX, state.lastY, radius, 0, 2 * Math.PI);
+              ctx.stroke();
+            }
           }
 
           state.isDrawing = false;
