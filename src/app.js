@@ -6994,39 +6994,66 @@
 
             // Student 1 seat
             var seat1 = createElement("div", "seating-seat");
-            var nameInput1 = document.createElement("input");
-            nameInput1.type = "text";
-            nameInput1.className = "seating-name-input";
-            nameInput1.value = desk.student1 || "";
-            nameInput1.placeholder = "Elev 1";
-            nameInput1.style.display = state.showNames ? "block" : "none";
-            nameInput1.addEventListener("input", function() {
-              desk.student1 = nameInput1.value;
+            var nameDiv1 = createElement("div", "seating-name-input");
+            nameDiv1.contentEditable = "true";
+            nameDiv1.textContent = desk.student1 || "";
+            if (!desk.student1) {
+              nameDiv1.setAttribute("data-placeholder", "Elev 1");
+            }
+            nameDiv1.style.display = state.showNames ? "block" : "none";
+
+            nameDiv1.addEventListener("blur", function() {
+              desk.student1 = nameDiv1.textContent.trim();
+              if (!desk.student1) {
+                nameDiv1.setAttribute("data-placeholder", "Elev 1");
+              } else {
+                nameDiv1.removeAttribute("data-placeholder");
+              }
               broadcastUpdate();
             });
-            nameInput1.addEventListener("click", function(e) {
+            nameDiv1.addEventListener("keydown", function(e) {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                nameDiv1.blur();
+              }
+            });
+            nameDiv1.addEventListener("click", function(e) {
               e.stopPropagation();
             });
-            seat1.appendChild(nameInput1);
+
+            seat1.appendChild(nameDiv1);
             deskVisual.appendChild(seat1);
 
             // Student 2 seat (only for double desks)
             if (desk.deskStyle !== 'single') {
               var seat2 = createElement("div", "seating-seat");
-              var nameInput2 = document.createElement("input");
-              nameInput2.type = "text";
-              nameInput2.className = "seating-name-input";
-              nameInput2.value = desk.student2 || "";
-              nameInput2.placeholder = "Elev 2";
-              nameInput2.style.display = state.showNames ? "block" : "none";
-              nameInput2.addEventListener("input", function() {
-                desk.student2 = nameInput2.value;
+              var nameDiv2 = createElement("div", "seating-name-input");
+              nameDiv2.contentEditable = "true";
+              nameDiv2.textContent = desk.student2 || "";
+              if (!desk.student2) {
+                nameDiv2.setAttribute("data-placeholder", "Elev 2");
+              }
+              nameDiv2.style.display = state.showNames ? "block" : "none";
+
+              nameDiv2.addEventListener("blur", function() {
+                desk.student2 = nameDiv2.textContent.trim();
+                if (!desk.student2) {
+                  nameDiv2.setAttribute("data-placeholder", "Elev 2");
+                } else {
+                  nameDiv2.removeAttribute("data-placeholder");
+                }
                 broadcastUpdate();
               });
-              nameInput2.addEventListener("click", function(e) {
+              nameDiv2.addEventListener("keydown", function(e) {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  nameDiv2.blur();
+                }
+              });
+              nameDiv2.addEventListener("click", function(e) {
                 e.stopPropagation();
               });
-              seat2.appendChild(nameInput2);
+              seat2.appendChild(nameDiv2);
               deskVisual.appendChild(seat2);
             }
 
