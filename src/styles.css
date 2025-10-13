@@ -7357,8 +7357,8 @@ body {
 
 .seating-name-input {
   width: 100%;
-  border: none;
-  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.85);
   text-align: center;
   font-size: 14px;
   font-weight: 700;
@@ -7368,6 +7368,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-radius: 4px;
 }
 
 .seating-name-input::placeholder {
