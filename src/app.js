@@ -171,9 +171,9 @@
   }
 
   var BUILT_IN_BACKGROUNDS = [
-    { id: "background-autumn", label: "H\u00f6stl\u00f6v", url: "https://images.unsplash.com/photo-1504199367641-aba8151af406?auto=format&fit=crop&w=1920&q=80", builtIn: true },
-    { id: "background-sunset", label: "Pastellhimmel", url: "https://images.unsplash.com/photo-1495344517868-8ebaf0a2044a?auto=format&fit=crop&w=1920&q=80", builtIn: true },
-    { id: "background-lake", label: "Still sj\u00f6", url: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1920&q=80", builtIn: true },
+    { id: "background-classroom", label: "Klassrum", url: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=1920&q=80", builtIn: true },
+    { id: "background-spring", label: "Vårblommor", url: "https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=1920&q=80", builtIn: true },
+    { id: "background-winter", label: "Vinter", url: "https://images.unsplash.com/photo-1483664852095-d6cc6870702d?auto=format&fit=crop&w=1920&q=80", builtIn: true },
     { id: "background-chalk", label: "Gr\u00f6n tavla", url: "https://images.unsplash.com/photo-1596496051644-5419dced3e3f?auto=format&fit=crop&w=1920&q=80", builtIn: true }
   ];
   var BACKGROUND_STORAGE_KEY = "classroomscreen-custom-backgrounds-v1";
